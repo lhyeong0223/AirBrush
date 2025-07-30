@@ -1,14 +1,16 @@
 // airbrush-app/src/components/Canvas.js
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 
 const Canvas = () => {
   const canvasRef = useRef(null);
+  const [color, setColor] = useState('black');
+  const [lineWidth, setLineWidth] = useState(5);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = 'black';
+    ctx.lineWidth = lineWidth;
+    ctx.strokeStyle = color;
 
     let isDrawing = false;
     canvas.addEventListener('mousedown', (e) => {
@@ -25,9 +27,31 @@ const Canvas = () => {
     canvas.addEventListener('mouseup', () => {
       isDrawing = false;
     });
-  }, []);
 
-  return <canvas ref={canvasRef} width={640} height={480} />;
+    return () => {
+      canvas.removeEventListener('mousedown', () => {});
+      canvas.removeEventListener('mousemove', () => {});
+      canvas.removeEventListener('mouseup', () => {});
+    };
+  }, [color, lineWidth]);
+
+  return (
+    <div>
+      <input
+        type="color"
+        value={color}
+        onChange={(e) => setColor(e.target.value)}
+      />
+      <input
+        type="range"
+        min="1"
+        max="20"
+        value={lineWidth}
+        onChange={(e) => setLineWidth(e.target.value)}
+      />
+      <canvas ref={canvasRef} width={640} height={480} />
+    </div>
+  );
 };
 
 export default Canvas;
