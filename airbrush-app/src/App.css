@@ -3,6 +3,9 @@ canvas, video {
   border: 1px solid black;
   margin: 20px;
 }
+video {
+  transform: scaleX(-1); /* 좌우 반전 */
+}
 input, button {
   margin: 10px;
   padding: 5px 10px;

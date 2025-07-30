@@ -1,3 +1,4 @@
+// airbrush-app/src/components/Webcam.js
 import React, { useRef, useEffect } from 'react';
 import * as handTracking from '@mediapipe/hands';
 import * as cameraUtils from '@mediapipe/camera_utils';
@@ -20,7 +21,7 @@ const Webcam = ({ onHandMove }) => {
         const landmarks = results.multiHandLandmarks[0];
         const indexFingerTip = landmarks[8]; // 검지 끝 (landmark 8)
         onHandMove({
-          x: indexFingerTip.x * 640, // 캔버스 크기 스케일
+          x: (1 - indexFingerTip.x) * 640, // x좌표 반전
           y: indexFingerTip.y * 480,
         });
       }
