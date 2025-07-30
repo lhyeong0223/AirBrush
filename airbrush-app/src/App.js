@@ -1,13 +1,17 @@
 // airbrush-app/src/App.js
-import React from 'react';
+import React, { useState } from 'react';
 import Canvas from './components/Canvas';
+import Webcam from './components/Webcam';
 import './App.css';
 
 function App() {
+  const [handPosition, setHandPosition] = useState(null);
+
   return (
     <div>
       <h1>AirBrush</h1>
-      <Canvas />
+      <Webcam onHandMove={setHandPosition} />
+      <Canvas handPosition={handPosition} />
     </div>
   );
 }

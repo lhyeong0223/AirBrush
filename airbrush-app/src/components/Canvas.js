@@ -1,10 +1,10 @@
-// airbrush-app/src/components/Canvas.js
 import React, { useRef, useEffect, useState } from 'react';
 
-const Canvas = () => {
+const Canvas = ({ handPosition }) => {
   const canvasRef = useRef(null);
   const [color, setColor] = useState('black');
   const [lineWidth, setLineWidth] = useState(5);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -12,28 +12,48 @@ const Canvas = () => {
     ctx.lineWidth = lineWidth;
     ctx.strokeStyle = color;
 
-    let isDrawing = false;
+    let lastPosition = null;
+
+    // 마우스 이벤트
     canvas.addEventListener('mousedown', (e) => {
-      isDrawing = true;
+      setIsDrawing(true);
       ctx.beginPath();
       ctx.moveTo(e.offsetX, e.offsetY);
+      lastPosition = { x: e.offsetX, y: e.offsetY };
     });
     canvas.addEventListener('mousemove', (e) => {
       if (isDrawing) {
         ctx.lineTo(e.offsetX, e.offsetY);
         ctx.stroke();
+        lastPosition = { x: e.offsetX, y: e.offsetY };
       }
     });
     canvas.addEventListener('mouseup', () => {
-      isDrawing = false;
+      setIsDrawing(false);
+      lastPosition = null;
     });
+
+    // 손동작 이벤트
+    if (handPosition && isDrawing) {
+      if (lastPosition) {
+        ctx.beginPath();
+        ctx.moveTo(lastPosition.x, lastPosition.y);
+      }
+      ctx.lineTo(handPosition.x, handPosition.y);
+      ctx.stroke();
+      lastPosition = handPosition;
+    }
 
     return () => {
       canvas.removeEventListener('mousedown', () => {});
       canvas.removeEventListener('mousemove', () => {});
       canvas.removeEventListener('mouseup', () => {});
     };
-  }, [color, lineWidth]);
+  }, [color, lineWidth, isDrawing, handPosition]);
+
+  const toggleDrawing = () => {
+    setIsDrawing(!isDrawing);
+  };
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -56,6 +76,9 @@ const Canvas = () => {
         value={lineWidth}
         onChange={(e) => setLineWidth(e.target.value)}
       />
+      <button onClick={toggleDrawing}>
+        {isDrawing ? 'Stop Drawing' : 'Start Drawing'}
+      </button>
       <button onClick={clearCanvas}>Clear Canvas</button>
       <canvas ref={canvasRef} width={640} height={480} />
     </div>
