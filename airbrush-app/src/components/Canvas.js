@@ -1,10 +1,10 @@
+// airbrush-app/src/components/Canvas.js
 import React, { useRef, useEffect, useState } from 'react';
 
-const Canvas = ({ handPosition }) => {
+const Canvas = ({ handPosition, isDrawing }) => {
   const canvasRef = useRef(null);
   const [color, setColor] = useState('black');
   const [lineWidth, setLineWidth] = useState(5);
-  const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -16,20 +16,18 @@ const Canvas = ({ handPosition }) => {
 
     // 마우스 이벤트
     canvas.addEventListener('mousedown', (e) => {
-      setIsDrawing(true);
       ctx.beginPath();
       ctx.moveTo(e.offsetX, e.offsetY);
       lastPosition = { x: e.offsetX, y: e.offsetY };
     });
     canvas.addEventListener('mousemove', (e) => {
-      if (isDrawing) {
+      if (e.buttons === 1) { // 마우스 왼쪽 버튼 눌림
         ctx.lineTo(e.offsetX, e.offsetY);
         ctx.stroke();
         lastPosition = { x: e.offsetX, y: e.offsetY };
       }
     });
     canvas.addEventListener('mouseup', () => {
-      setIsDrawing(false);
       lastPosition = null;
     });
 
@@ -50,10 +48,6 @@ const Canvas = ({ handPosition }) => {
       canvas.removeEventListener('mouseup', () => {});
     };
   }, [color, lineWidth, isDrawing, handPosition]);
-
-  const toggleDrawing = () => {
-    setIsDrawing(!isDrawing);
-  };
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -76,9 +70,6 @@ const Canvas = ({ handPosition }) => {
         value={lineWidth}
         onChange={(e) => setLineWidth(e.target.value)}
       />
-      <button onClick={toggleDrawing}>
-        {isDrawing ? 'Stop Drawing' : 'Start Drawing'}
-      </button>
       <button onClick={clearCanvas}>Clear Canvas</button>
       <canvas ref={canvasRef} width={640} height={480} />
     </div>

@@ -6,12 +6,13 @@ import './App.css';
 
 function App() {
   const [handPosition, setHandPosition] = useState(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   return (
     <div>
       <h1>AirBrush</h1>
-      <Webcam onHandMove={setHandPosition} />
-      <Canvas handPosition={handPosition} />
+      <Webcam onHandMove={setHandPosition} onGestureChange={setIsDrawing} />
+      <Canvas handPosition={handPosition} isDrawing={isDrawing} />
     </div>
   );
 }
