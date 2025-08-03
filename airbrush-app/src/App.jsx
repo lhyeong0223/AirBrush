@@ -156,7 +156,7 @@ function App() {
       <style>
         {` @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap'); body { font-family: 'Inter', sans-serif; } `}
       </style>
-      <h1 className="text-4xl font-bold text-gray-800 mb-6 rounded-lg p-2 bg-white shadow-md">
+      <h1 className="text-4xl font-bold text-gray-800 mb-6">
         AirBrush
       </h1>
       <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden">
