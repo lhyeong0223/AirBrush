@@ -1,0 +1,151 @@
+import { useRef, useEffect, useState, useCallback } from 'react';
+import { Hands } from '@mediapipe/hands';
+import * as cam from '@mediapipe/camera_utils';
+
+/**
+  @returns {{
+    webcamRef: React.RefObject<HTMLVideoElement>,
+    currentHandPoint: {x: number, y: number} | null,
+    drawing: boolean,
+    lastPoint: {x: number, y: number} | null,
+    drawnSegments: Array<{p1: {x: number, y: number}, p2: {x: number, y: number}, color: string}>,
+    setDrawnSegments: React.Dispatch<React.SetStateAction<Array<{p1: {x: number, y: number}, p2: {x: number, y: number}, color: string}>>>,
+    loading: boolean,
+    currentColor: string // 현재 그리기 색상 (App.jsx에서 설정)
+  }}
+ */
+const useHandTracking = (initialColor) => {
+  const webcamRef = useRef(null);
+  const [drawing, setDrawing] = useState(false);
+  const [lastPoint, setLastPoint] = useState(null);
+  const [currentHandPoint, setCurrentHandPoint] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [drawnSegments, setDrawnSegments] = useState([]);
+  const [currentColor, setCurrentColor] = useState(initialColor); // App.jsx에서 초기 색상 가져옴
+
+  const drawingRef = useRef(drawing);
+  const lastPointRef = useRef(lastPoint);
+  const currentHandPointRef = useRef(currentHandPoint);
+  const currentColorRef = useRef(currentColor);
+  const drawnSegmentsRef = useRef(drawnSegments);
+
+  // 상태가 변경될 때마다 useRef 값을 업데이트
+  useEffect(() => { drawingRef.current = drawing; }, [drawing]);
+  useEffect(() => { lastPointRef.current = lastPoint; }, [lastPoint]);
+  useEffect(() => { currentHandPointRef.current = currentHandPoint; }, [currentHandPoint]);
+  useEffect(() => { currentColorRef.current = currentColor; }, [currentColor]);
+  useEffect(() => { drawnSegmentsRef.current = drawnSegments; }, [drawnSegments]);
+
+
+  // MediaPipe Hands에서 결과가 나올 때마다 호출되는 함수
+  const onResults = useCallback((results) => {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+      const landmarks = results.multiHandLandmarks[0]; // 첫 번째 손만 사용
+      const indexTip = landmarks[8];
+      const thumbTip = landmarks[4];
+
+      // 캔버스 크기에 맞게 좌표 스케일링 (CanvasComponent의 고정된 크기 640x480 사용)
+      const canvasWidth = 640;
+      const canvasHeight = 480;
+
+      const canvasX_index = indexTip.x * canvasWidth;
+      const canvasY_index = indexTip.y * canvasHeight;
+
+      const canvasX_thumb = thumbTip.x * canvasWidth;
+      const canvasY_thumb = thumbTip.y * canvasHeight;
+
+      // 핀치 감지를 위해 엄지와 검지 손가락 끝 사이의 거리 계산
+      const distance = Math.sqrt(
+        Math.pow(canvasX_index - canvasX_thumb, 2) +
+        Math.pow(canvasY_index - canvasY_thumb, 2)
+      );
+
+      const pinchThreshold = 30; // 핀치 감지 임계값 (테스트를 통해 조정 가능)
+
+      const newCurrentHandPoint = { x: canvasX_index, y: canvasY_index };
+      setCurrentHandPoint(newCurrentHandPoint); // 손이 감지되면 항상 포인터 위치 업데이트
+
+      if (distance < pinchThreshold) { // 핀치 감지됨
+        if (!drawingRef.current) { // 그리기 시작
+          setDrawing(true);
+          setLastPoint(newCurrentHandPoint);
+        } else { // 그리기 계속
+          if (lastPointRef.current) {
+            setDrawnSegments(prevSegments => [
+              ...prevSegments,
+              {
+                p1: lastPointRef.current,
+                p2: newCurrentHandPoint,
+                color: currentColorRef.current
+              }
+            ]);
+          }
+          setLastPoint(newCurrentHandPoint);
+        }
+      } else { // 핀치 아님
+        if (drawingRef.current) {
+          setDrawing(false);
+          setLastPoint(null);
+        }
+      }
+    } else {
+      // 손이 감지되지 않으면 그리기 및 포인터 표시 모두 중지
+      if (drawingRef.current) {
+        setDrawing(false);
+      }
+      setLastPoint(null);
+      setCurrentHandPoint(null);
+    }
+  }, []); // onResults는 이제 어떤 React 상태에도 직접 의존하지 않으므로 빈 의존성 배열을 가집니다.
+
+  // MediaPipe Hands 모델 초기화 및 웹캠 스트림 설정
+  useEffect(() => {
+    const hands = new Hands({
+      locateFile: (file) => {
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+      },
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7,
+    });
+
+    hands.onResults(onResults);
+
+    // 웹캠 스트림을 MediaPipe Hands 모델로 전송
+    if (webcamRef.current) {
+      const camera = new cam.Camera(webcamRef.current.video, {
+        onFrame: async () => {
+          if (webcamRef.current && webcamRef.current.video) {
+            await hands.send({ image: webcamRef.current.video });
+          }
+        },
+        width: 640,
+        height: 480,
+      });
+      camera.start();
+      setLoading(false);
+    }
+
+    return () => {
+      hands.close();
+    };
+  }, [onResults]);
+
+  return {
+    webcamRef,
+    currentHandPoint,
+    drawing,
+    lastPoint,
+    drawnSegments,
+    setDrawnSegments,
+    loading,
+    currentColor,
+    setCurrentColor // App.jsx에서 색상 변경을 위해 노출
+  };
+};
+
+export default useHandTracking;
