@@ -12,14 +12,23 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
   const rafRef = useRef(null);
 
   // 선분 그리기 (단일 세그먼트)
-  const drawLine = useCallback((ctx, p1, p2, color) => {
+  const drawLine = useCallback((ctx, p1, p2, color, width = 5, cap = 'round', dash = [], alpha = 1.0, composite = 'source-over') => {
     ctx.beginPath();
+    ctx.setLineDash(Array.isArray(dash) ? dash : []);
+    ctx.lineWidth = width;
+    ctx.lineCap = cap;
+    ctx.strokeStyle = color;
+    const prevAlpha = ctx.globalAlpha;
+    const prevComposite = ctx.globalCompositeOperation;
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = composite;
     ctx.moveTo(p1.x, p1.y);
     ctx.lineTo(p2.x, p2.y);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
     ctx.stroke();
+    // 다음 그리기에 영향 없도록 초기화
+    ctx.setLineDash([]);
+    ctx.globalAlpha = prevAlpha;
+    ctx.globalCompositeOperation = prevComposite;
   }, []);
 
   // 포인터 그리기 (overlay 전용)
@@ -55,7 +64,7 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     if (drawnSegments.length > prevLen) {
       for (let i = prevLen; i < drawnSegments.length; i++) {
         const seg = drawnSegments[i];
-        drawLine(sctx, seg.p1, seg.p2, seg.color);
+        drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
       }
       prevLenRef.current = drawnSegments.length;
     } else if (drawnSegments.length === 0 && prevLen !== 0) {

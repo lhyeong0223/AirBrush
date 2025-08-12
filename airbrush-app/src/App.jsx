@@ -12,7 +12,17 @@ function App() {
     setDrawnSegments,
     loading,
     currentColor,
-    setCurrentColor
+    setCurrentColor,
+    currentWidth,
+    setCurrentWidth,
+    currentCap,
+    setCurrentCap,
+    currentDash,
+    setCurrentDash,
+    currentAlpha,
+    setCurrentAlpha,
+    currentComposite,
+    setCurrentComposite
   } = useHandTracking('#000000'); // 초기 색상 설정
 
   const canvasRef = useRef(null); // CanvasComponent의 ref
@@ -56,19 +66,89 @@ function App() {
         />
       </div>
 
-      <div className="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 mt-6">
-        <div className="flex items-center space-x-2 bg-white p-3 rounded-lg shadow-md">
-          <label htmlFor="colorPicker" className="text-gray-700 font-semibold">
-            Color:
-          </label>
+      <div className="flex flex-wrap items-center gap-3 w-full max-w-2xl mt-4">
+        {/* 색상 선택 + 팔레트 */}
+        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
+          <span className="text-gray-700 font-semibold">Color</span>
           <input
             type="color"
-            id="colorPicker"
+            aria-label="Pick color"
             value={currentColor}
             onChange={(e) => setCurrentColor(e.target.value)}
             className="w-10 h-10 border-none rounded-md cursor-pointer"
           />
+          <div className="flex items-center gap-2">
+            {['#000000','#ff0000','#00a152','#1976d2','#9c27b0','#ff9800','#795548','#ffffff'].map((c) => (
+              <button
+                key={c}
+                onClick={() => setCurrentColor(c)}
+                className={`w-6 h-6 rounded-full border ${c === '#ffffff' ? 'border-gray-300' : 'border-transparent'}`}
+                style={{ backgroundColor: c }}
+                title={c}
+              />
+            ))}
+          </div>
         </div>
+
+        {/* 브러시 굵기 */}
+        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
+          <label htmlFor="brushWidth" className="text-gray-700 font-semibold">Width</label>
+          <input
+            id="brushWidth"
+            type="range"
+            min="1"
+            max="30"
+            step="1"
+            value={currentWidth}
+            onChange={(e) => setCurrentWidth(parseInt(e.target.value, 10))}
+            className="w-40"
+          />
+          <span className="w-8 text-center text-sm text-gray-600">{currentWidth}</span>
+        </div>
+
+        {/* 브러시 끝 모양 */}
+        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
+          <label htmlFor="brushCap" className="text-gray-700 font-semibold">Cap</label>
+          <select
+            id="brushCap"
+            value={currentCap}
+            onChange={(e) => setCurrentCap(e.target.value)}
+            className="border rounded-md px-2 py-1"
+          >
+            <option value="round">round</option>
+            <option value="butt">butt</option>
+            <option value="square">square</option>
+          </select>
+        </div>
+
+        {/* 브러시 종류 (프리셋) */}
+        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
+          <span className="text-gray-700 font-semibold">Brush</span>
+          <div className="flex items-center gap-2">
+            {[
+              {key:'pen', w:3, cap:'round', dash:[], a:1.0, comp:'source-over'},
+              {key:'marker', w:10, cap:'round', dash:[], a:0.9, comp:'source-over'},
+              {key:'highlighter', w:18, cap:'butt', dash:[], a:0.35, comp:'multiply'},
+              {key:'dashed', w:6, cap:'butt', dash:[12,8], a:1.0, comp:'source-over'},
+              {key:'dotted', w:6, cap:'round', dash:[2,6], a:1.0, comp:'source-over'},
+            ].map(p => (
+              <button
+                key={p.key}
+                onClick={() => {
+                  setCurrentWidth(p.w);
+                  setCurrentCap(p.cap);
+                  setCurrentDash(p.dash);
+                  setCurrentAlpha(p.a);
+                  setCurrentComposite(p.comp);
+                }}
+                className="h-8 px-2 rounded-md border text-xs text-gray-700 bg-gray-50 hover:bg-gray-100 whitespace-nowrap"
+              >
+                {p.key}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button
           onClick={handleClearCanvas}
           className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"

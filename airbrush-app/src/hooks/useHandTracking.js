@@ -22,12 +22,23 @@ const useHandTracking = (initialColor) => {
   const [loading, setLoading] = useState(true);
   const [drawnSegments, setDrawnSegments] = useState([]);
   const [currentColor, setCurrentColor] = useState(initialColor); // App.jsx에서 초기 색상 가져옴
+  // 브러시 옵션: 굵기, 끝 모양, 패턴(대시)
+  const [currentWidth, setCurrentWidth] = useState(5);
+  const [currentCap, setCurrentCap] = useState('round'); // 'round' | 'butt' | 'square'
+  const [currentDash, setCurrentDash] = useState([]); // 예: [] | [10,6]
+  const [currentAlpha, setCurrentAlpha] = useState(1.0); // 투명도 (0~1)
+  const [currentComposite, setCurrentComposite] = useState('source-over'); // 합성 모드
 
   const drawingRef = useRef(drawing);
   const lastPointRef = useRef(lastPoint);
   const currentHandPointRef = useRef(currentHandPoint);
   const currentColorRef = useRef(currentColor);
   const drawnSegmentsRef = useRef(drawnSegments);
+  const currentWidthRef = useRef(currentWidth);
+  const currentCapRef = useRef(currentCap);
+  const currentDashRef = useRef(currentDash);
+  const currentAlphaRef = useRef(currentAlpha);
+  const currentCompositeRef = useRef(currentComposite);
 
   // 상태가 변경될 때마다 useRef 값을 업데이트
   useEffect(() => { drawingRef.current = drawing; }, [drawing]);
@@ -35,6 +46,11 @@ const useHandTracking = (initialColor) => {
   useEffect(() => { currentHandPointRef.current = currentHandPoint; }, [currentHandPoint]);
   useEffect(() => { currentColorRef.current = currentColor; }, [currentColor]);
   useEffect(() => { drawnSegmentsRef.current = drawnSegments; }, [drawnSegments]);
+  useEffect(() => { currentWidthRef.current = currentWidth; }, [currentWidth]);
+  useEffect(() => { currentCapRef.current = currentCap; }, [currentCap]);
+  useEffect(() => { currentDashRef.current = currentDash; }, [currentDash]);
+  useEffect(() => { currentAlphaRef.current = currentAlpha; }, [currentAlpha]);
+  useEffect(() => { currentCompositeRef.current = currentComposite; }, [currentComposite]);
 
 
   // MediaPipe Hands에서 결과가 나올 때마다 호출되는 함수
@@ -81,7 +97,12 @@ const useHandTracking = (initialColor) => {
               {
                 p1: lastPointRef.current, // 이미 미러링된 좌표
                 p2: newCurrentHandPoint,  // 이미 미러링된 좌표
-                color: currentColorRef.current
+                color: currentColorRef.current,
+                width: currentWidthRef.current,
+                cap: currentCapRef.current,
+                dash: currentDashRef.current,
+                alpha: currentAlphaRef.current,
+                composite: currentCompositeRef.current
               }
             ]);
           }
@@ -149,7 +170,17 @@ const useHandTracking = (initialColor) => {
     setDrawnSegments,
     loading,
     currentColor,
-    setCurrentColor // App.jsx에서 색상 변경을 위해 노출
+    setCurrentColor, // App.jsx에서 색상 변경을 위해 노출
+    currentWidth,
+    setCurrentWidth,
+    currentCap,
+    setCurrentCap,
+    currentDash,
+    setCurrentDash,
+    currentAlpha,
+    setCurrentAlpha,
+    currentComposite,
+    setCurrentComposite
   };
 };
 
