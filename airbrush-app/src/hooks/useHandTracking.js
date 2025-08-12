@@ -54,6 +54,10 @@ const useHandTracking = (initialColor) => {
       const canvasX_thumb = thumbTip.x * canvasWidth;
       const canvasY_thumb = thumbTip.y * canvasHeight;
 
+      // 미러링 적용: UI는 반전된 웹캠 기준으로 작동해야 하므로 x 좌표를 반전하여 사용
+      const mirroredX_index = canvasWidth - canvasX_index;
+      const mirroredX_thumb = canvasWidth - canvasX_thumb;
+
       // 핀치 감지를 위해 엄지와 검지 손가락 끝 사이의 거리 계산
       const distance = Math.sqrt(
         Math.pow(canvasX_index - canvasX_thumb, 2) +
@@ -62,7 +66,8 @@ const useHandTracking = (initialColor) => {
 
       const pinchThreshold = 30; // 핀치 감지 임계값 (테스트를 통해 조정 가능)
 
-      const newCurrentHandPoint = { x: canvasX_index, y: canvasY_index };
+      // 표시/그리기는 미러링된 좌표 사용
+      const newCurrentHandPoint = { x: mirroredX_index, y: canvasY_index };
       setCurrentHandPoint(newCurrentHandPoint); // 손이 감지되면 항상 포인터 위치 업데이트
 
       if (distance < pinchThreshold) { // 핀치 감지됨
@@ -74,8 +79,8 @@ const useHandTracking = (initialColor) => {
             setDrawnSegments(prevSegments => [
               ...prevSegments,
               {
-                p1: lastPointRef.current,
-                p2: newCurrentHandPoint,
+                p1: lastPointRef.current, // 이미 미러링된 좌표
+                p2: newCurrentHandPoint,  // 이미 미러링된 좌표
                 color: currentColorRef.current
               }
             ]);

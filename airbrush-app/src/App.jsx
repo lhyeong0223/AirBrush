@@ -8,8 +8,6 @@ function App() {
   const {
     webcamRef,
     currentHandPoint,
-    drawing,
-    lastPoint,
     drawnSegments,
     setDrawnSegments,
     loading,
@@ -52,11 +50,8 @@ function App() {
         />
         <CanvasComponent
           ref={canvasRef}
-          drawing={drawing}
-          lastPoint={lastPoint}
           currentColor={currentColor}
           currentHandPoint={currentHandPoint}
-          webcamVideo={webcamRef.current ? webcamRef.current.video : null}
           drawnSegments={drawnSegments}
         />
       </div>
