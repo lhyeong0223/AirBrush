@@ -441,7 +441,7 @@ function App() {
         </aside>
 
         {/* Main canvas area */}
-        <main className="flex-1 ml-0 sm:ml-64 p-4">
+        <main className="flex-1 ml-0 p-4">
           <div className="mx-auto max-w-4xl">
             <div className="relative w-full bg-white rounded-lg shadow-xl overflow-hidden" style={{ aspectRatio: `${logicalWidth}/${logicalHeight}` }}>
               {loading && (
