@@ -41,6 +41,9 @@ const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480) 
   const currentCompositeRef = useRef(currentComposite);
   const logicalWidthRef = useRef(logicalWidth);
   const logicalHeightRef = useRef(logicalHeight);
+  // 핀치 안정화를 위한 좌표 평활화(EMA)용 저장소 (정규화 좌표 0~1)
+  const smoothIndexRef = useRef({ x: null, y: null });
+  const smoothThumbRef = useRef({ x: null, y: null });
 
   // 상태가 변경될 때마다 useRef 값을 업데이트
   useEffect(() => { drawingRef.current = drawing; }, [drawing]);
@@ -63,34 +66,40 @@ const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480) 
       const landmarks = results.multiHandLandmarks[0]; // 첫 번째 손만 사용
       const indexTip = landmarks[8];
       const thumbTip = landmarks[4];
+      // 정규화 좌표(0~1) 기반으로 EMA 평활화
+      const rawIx = indexTip.x, rawIy = indexTip.y;
+      const rawTx = thumbTip.x, rawTy = thumbTip.y;
+      const EMA_KEEP = 0.6; // 이전값 가중치 (0.0~1.0), 높을수록 더 부드럽게
+      const EMA_APPLY = 1 - EMA_KEEP;
 
-      // 캔버스 크기에 맞게 좌표 스케일링 (논리 캔버스 크기 사용)
+      const prevI = smoothIndexRef.current;
+      const prevT = smoothThumbRef.current;
+      const smIx = (prevI.x === null) ? rawIx : (prevI.x * EMA_KEEP + rawIx * EMA_APPLY);
+      const smIy = (prevI.y === null) ? rawIy : (prevI.y * EMA_KEEP + rawIy * EMA_APPLY);
+      const smTx = (prevT.x === null) ? rawTx : (prevT.x * EMA_KEEP + rawTx * EMA_APPLY);
+      const smTy = (prevT.y === null) ? rawTy : (prevT.y * EMA_KEEP + rawTy * EMA_APPLY);
+      smoothIndexRef.current = { x: smIx, y: smIy };
+      smoothThumbRef.current = { x: smTx, y: smTy };
+
+      // 해상도 독립적인 정규화 거리 (0~1 범위)
+      const normDist = Math.hypot(smIx - smTx, smIy - smTy);
+      // 히스테리시스: on/off 임계값 분리로 토글 안정화
+      const PINCH_ON = 0.09;  // 약 화면의 5%
+      const PINCH_OFF = 0.11; // 해제는 조금 더 널널하게
+      const threshold = drawingRef.current ? PINCH_OFF : PINCH_ON;
+
+      // 캔버스 크기에 맞게 좌표 스케일링 (논리 캔버스 크기 사용) + 미러링
       const canvasWidth = logicalWidthRef.current;
       const canvasHeight = logicalHeightRef.current;
-
-      const canvasX_index = indexTip.x * canvasWidth;
-      const canvasY_index = indexTip.y * canvasHeight;
-
-      const canvasX_thumb = thumbTip.x * canvasWidth;
-      const canvasY_thumb = thumbTip.y * canvasHeight;
-
-      // 미러링 적용: UI는 반전된 웹캠 기준으로 작동해야 하므로 x 좌표를 반전하여 사용
+      const canvasX_index = smIx * canvasWidth;
+      const canvasY_index = smIy * canvasHeight;
       const mirroredX_index = canvasWidth - canvasX_index;
-      const mirroredX_thumb = canvasWidth - canvasX_thumb;
 
-      // 핀치 감지를 위해 엄지와 검지 손가락 끝 사이의 거리 계산
-      const distance = Math.sqrt(
-        Math.pow(canvasX_index - canvasX_thumb, 2) +
-        Math.pow(canvasY_index - canvasY_thumb, 2)
-      );
-
-      const pinchThreshold = 30; // 핀치 감지 임계값 (테스트를 통해 조정 가능)
-
-      // 표시/그리기는 미러링된 좌표 사용
+      // 표시/그리기는 미러링된 좌표 사용 (Y는 미러링하지 않음)
       const newCurrentHandPoint = { x: mirroredX_index, y: canvasY_index };
       setCurrentHandPoint(newCurrentHandPoint); // 손이 감지되면 항상 포인터 위치 업데이트
 
-      if (distance < pinchThreshold) { // 핀치 감지됨
+      if (normDist < threshold) { // 핀치 감지됨 (정규화 임계값 기반)
         if (!drawingRef.current) { // 그리기 시작
           setDrawing(true);
           setLastPoint(newCurrentHandPoint);
