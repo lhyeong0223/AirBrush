@@ -61,18 +61,31 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     if (!sctx) return;
 
     const prevLen = prevLenRef.current;
-    if (drawnSegments.length > prevLen) {
-      for (let i = prevLen; i < drawnSegments.length; i++) {
+    const currLen = drawnSegments.length;
+
+    if (currLen > prevLen) {
+      // 증가: 새로 추가된 세그먼트만 그리기
+      for (let i = prevLen; i < currLen; i++) {
         const seg = drawnSegments[i];
         drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
       }
-      prevLenRef.current = drawnSegments.length;
-    } else if (drawnSegments.length === 0 && prevLen !== 0) {
-      // 외부에서 전체 지우기 수행 시 초기화
+      prevLenRef.current = currLen;
+    } else if (currLen === 0 && prevLen !== 0) {
+      // 전체 비움
       sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
       sctx.fillStyle = 'white';
       sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
       prevLenRef.current = 0;
+    } else if (currLen < prevLen) {
+      // 감소(Undo 등): 전체 리렌더링
+      sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+      sctx.fillStyle = 'white';
+      sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+      for (let i = 0; i < currLen; i++) {
+        const seg = drawnSegments[i];
+        drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
+      }
+      prevLenRef.current = currLen;
     }
   }, [drawnSegments, drawLine]);
 
@@ -116,6 +129,23 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
         }
       }
       prevLenRef.current = 0;
+    },
+    getImageDataURL: () => {
+      const strokesCanvas = strokesCanvasRef.current;
+      if (!strokesCanvas) return null;
+      return strokesCanvas.toDataURL('image/png');
+    },
+    downloadImage: (filename = 'airbrush.png') => {
+      const dataUrl = (typeof window !== 'undefined' && ref && ref.current && ref.current.getImageDataURL)
+        ? ref.current.getImageDataURL()
+        : (strokesCanvasRef.current ? strokesCanvasRef.current.toDataURL('image/png') : null);
+      if (!dataUrl) return;
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
   }));
 

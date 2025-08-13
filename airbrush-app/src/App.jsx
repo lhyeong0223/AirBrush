@@ -11,6 +11,7 @@ function App() {
     drawnSegments,
     setDrawnSegments,
     loading,
+    drawing,
     currentColor,
     setCurrentColor,
     currentWidth,
@@ -53,6 +54,15 @@ function App() {
     }
   };
 
+  // 이미지 저장 (PNG 다운로드)
+  const handleSaveImage = () => {
+    if (!canvasRef.current || !canvasRef.current.downloadImage) return;
+    const ts = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const filename = `airbrush_${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}.png`;
+    canvasRef.current.downloadImage(filename);
+  };
+
   // 초기 브러쉬 적용
   useEffect(() => {
     applyBrush('pen');
@@ -62,6 +72,12 @@ function App() {
   // 배경색은 흰색 고정이므로 추가 동기화 불필요
 
   const canvasRef = useRef(null); // CanvasComponent의 ref
+  // 그룹(스트로크) 단위 Undo/Redo
+  const strokeStartIndexRef = useRef(0);
+  const prevDrawingRef = useRef(false);
+  const isRedoingRef = useRef(false);
+  const [strokeGroups, setStrokeGroups] = useState([]); // Array<Array<segment>>
+  const [redoGroups, setRedoGroups] = useState([]);     // Array<Array<segment>>
 
   // 캔버스를 지우는 함수
   const handleClearCanvas = () => {
@@ -70,7 +86,54 @@ function App() {
       canvasRef.current.clearCanvas();
     }
     setDrawnSegments([]); // 그려진 모든 선 세그먼트들도 지웁니다.
+    setStrokeGroups([]);
+    setRedoGroups([]);
   };
+
+  // Undo/Redo 핸들러 (그룹 단위)
+  const handleUndo = () => {
+    if (strokeGroups.length === 0) return;
+    const lastGroup = strokeGroups[strokeGroups.length - 1];
+    // drawnSegments에서 마지막 그룹 길이만큼 제거
+    setDrawnSegments(drawnSegments.slice(0, Math.max(0, drawnSegments.length - lastGroup.length)));
+    setStrokeGroups((prev) => prev.slice(0, -1));
+    setRedoGroups((prev) => [...prev, lastGroup]);
+  };
+
+  const handleRedo = () => {
+    if (redoGroups.length === 0) return;
+    const lastRedo = redoGroups[redoGroups.length - 1];
+    isRedoingRef.current = true;
+    setRedoGroups((prev) => prev.slice(0, -1));
+    // 그룹 전체를 다시 추가
+    setDrawnSegments([...drawnSegments, ...lastRedo]);
+    setStrokeGroups((prev) => [...prev, lastRedo]);
+    // isRedoingRef는 아래 드로잉 상태 감시에서 해제되지 않지만,
+    // redo는 핀치를 수반하지 않으므로 그룹 감시 로직과 충돌 없음
+    isRedoingRef.current = false;
+  };
+
+  // 드로잉 상태 변화 감시하여 스트로크 그룹 경계 기록
+  useEffect(() => {
+    const prevDrawing = prevDrawingRef.current;
+    if (!prevDrawing && drawing) {
+      // 스트로크 시작: 현재까지 그려진 개수를 시작 인덱스로 기록
+      strokeStartIndexRef.current = drawnSegments.length;
+    } else if (prevDrawing && !drawing) {
+      // 스트로크 종료: 시작~현재까지를 하나의 그룹으로 저장
+      const start = strokeStartIndexRef.current;
+      const end = drawnSegments.length;
+      if (end > start) {
+        const group = drawnSegments.slice(start, end);
+        setStrokeGroups((prev) => [...prev, group]);
+        if (!isRedoingRef.current) {
+          // 새로운 실제 드로잉이 끝났을 때만 redo 그룹 초기화
+          setRedoGroups([]);
+        }
+      }
+    }
+    prevDrawingRef.current = drawing;
+  }, [drawing, drawnSegments.length]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4 font-inter">
@@ -104,6 +167,39 @@ function App() {
 
       {/* 단일 툴바: 넘침 방지, 줄바꿈 허용 */}
       <div className="flex flex-wrap items-center gap-3 w-full max-w-2xl mt-4">
+        {/* 편집 도구: Undo / Redo / Clear All / Save */}
+        <div className="flex items-center gap-2 bg-white p-3 rounded-lg shadow-md">
+          <button
+            onClick={handleUndo}
+            disabled={strokeGroups.length === 0}
+            className={`h-9 px-3 rounded-md border text-sm ${strokeGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+            title="Undo"
+          >
+            Undo
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={redoGroups.length === 0}
+            className={`h-9 px-3 rounded-md border text-sm ${redoGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+            title="Redo"
+          >
+            Redo
+          </button>
+          <button
+            onClick={handleClearCanvas}
+            className="h-9 px-3 rounded-md border text-sm text-white bg-blue-600 hover:bg-blue-700"
+            title="Clear All"
+          >
+            Clear All
+          </button>
+          <button
+            onClick={handleSaveImage}
+            className="h-9 px-3 rounded-md border text-sm text-white bg-emerald-600 hover:bg-emerald-700"
+            title="Save as PNG"
+          >
+            Save PNG
+          </button>
+        </div>
         {/* 색상 선택 + 팔레트 */}
         <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
           <span className="text-gray-700 font-semibold">Color</span>
