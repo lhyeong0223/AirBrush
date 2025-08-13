@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { Undo2, Redo2, Trash2, Save, Droplet, PenLine, Highlighter, Eraser, Minus, Ellipsis, Circle, Square } from 'lucide-react';
 import WebcamComponent from './components/WebcamComponent.jsx';
 import CanvasComponent from './components/CanvasComponent.jsx';
 import useHandTracking from './hooks/useHandTracking'; // 커스텀 훅으로 뻄
@@ -136,7 +137,7 @@ function App() {
   }, [drawing, drawnSegments.length]);
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4 font-inter">
+    <div className="min-h-screen bg-gray-100 font-inter">
       <style>
         {`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -144,223 +145,249 @@ function App() {
         `}
       </style>
 
-      <h1 className="text-4xl font-bold text-gray-800 mb-6 rounded-lg p-2 bg-white shadow-md">
-        AirBrush
-      </h1>
-
-      <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl overflow-hidden">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white text-lg z-10 rounded-lg">
-            Webcam loading... Please allow camera access.
+      <div className="flex">
+        {/* Left vertical toolbar */}
+        <aside className="hidden sm:flex sm:flex-col sm:w-64 sm:shrink-0 sticky top-0 h-screen overflow-y-auto bg-white border-r border-gray-200 p-4 gap-4">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-xl font-bold text-gray-800">AirBrush</h1>
           </div>
-        )}
-        <WebcamComponent
-          ref={webcamRef}
-        />
-        <CanvasComponent
-          ref={canvasRef}
-          currentColor={currentColor}
-          currentHandPoint={currentHandPoint}
-          drawnSegments={drawnSegments}
-        />
-      </div>
 
-      {/* 단일 툴바: 넘침 방지, 줄바꿈 허용 */}
-      <div className="flex flex-wrap items-center gap-3 w-full max-w-2xl mt-4">
-        {/* 편집 도구: Undo / Redo / Clear All / Save */}
-        <div className="flex items-center gap-2 bg-white p-3 rounded-lg shadow-md">
-          <button
-            onClick={handleUndo}
-            disabled={strokeGroups.length === 0}
-            className={`h-9 px-3 rounded-md border text-sm ${strokeGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
-            title="Undo"
-          >
-            Undo
-          </button>
-          <button
-            onClick={handleRedo}
-            disabled={redoGroups.length === 0}
-            className={`h-9 px-3 rounded-md border text-sm ${redoGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
-            title="Redo"
-          >
-            Redo
-          </button>
-          <button
-            onClick={handleClearCanvas}
-            className="h-9 px-3 rounded-md border text-sm text-white bg-blue-600 hover:bg-blue-700"
-            title="Clear All"
-          >
-            Clear All
-          </button>
-          <button
-            onClick={handleSaveImage}
-            className="h-9 px-3 rounded-md border text-sm text-white bg-emerald-600 hover:bg-emerald-700"
-            title="Save as PNG"
-          >
-            Save PNG
-          </button>
-        </div>
-        {/* 색상 선택 + 팔레트 */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
-          <span className="text-gray-700 font-semibold">Color</span>
-          <input
-            type="color"
-            aria-label="Pick color"
-            value={currentColor}
-            onChange={(e) => {
-              const color = e.target.value;
-              setCurrentColor(color);
-              // 지우개 외 현재 브러쉬의 색상 저장
-              if (activeBrush !== 'eraser') {
-                setBrushSettings(prev => ({
-                  ...prev,
-                  [activeBrush]: { ...prev[activeBrush], c: color }
-                }));
-              }
-            }}
-            className="w-10 h-10 border-none rounded-md cursor-pointer"
-            disabled={activeBrush === 'eraser'}
-          />
-          <div className="flex items-center gap-2">
-            {['#000000','#ff0000','#00a152','#1976d2','#9c27b0','#ff9800','#795548','#ffffff'].map((c) => (
-              <button
-                key={c}
-                onClick={() => {
-                  if (activeBrush === 'eraser') return; // 지우개는 배경색 동기화
-                  setCurrentColor(c);
+          {/* Brushes */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Brush</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { key: 'pen', label: 'Pen', icon: <PenLine size={18} /> },
+                { key: 'marker', label: 'Marker', icon: <PenLine size={18} /> },
+                { key: 'highlighter', label: 'Highlighter', icon: <Highlighter size={18} /> },
+                { key: 'dashed', label: 'Dashed', icon: <Minus size={18} /> },
+                { key: 'dotted', label: 'Dotted', icon: <Ellipsis size={18} /> },
+                { key: 'eraser', label: 'Eraser', icon: <Eraser size={18} /> },
+              ].map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  onClick={() => applyBrush(key)}
+                  className={`flex flex-col items-center justify-center gap-1 h-16 rounded-md border text-xs transition-colors ${
+                    activeBrush === key ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={label}
+                >
+                  {icon}
+                  <span className="leading-none">{label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {/* Color & palette */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2 inline-flex items-center gap-1"><Droplet size={14} /> Color</h2>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                aria-label="Pick color"
+                value={currentColor}
+                onChange={(e) => {
+                  const color = e.target.value;
+                  setCurrentColor(color);
+                  if (activeBrush !== 'eraser') {
+                    setBrushSettings(prev => ({
+                      ...prev,
+                      [activeBrush]: { ...prev[activeBrush], c: color }
+                    }));
+                  }
+                }}
+                className="w-10 h-10 border-none rounded-md cursor-pointer"
+                disabled={activeBrush === 'eraser'}
+              />
+              <div className="grid grid-cols-8 gap-2">
+                {['#000000','#ff0000','#00a152','#1976d2','#9c27b0','#ff9800','#795548','#ffffff'].map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      if (activeBrush === 'eraser') return;
+                      setCurrentColor(c);
+                      setBrushSettings(prev => ({
+                        ...prev,
+                        [activeBrush]: { ...prev[activeBrush], c }
+                      }));
+                    }}
+                    className={`w-5 h-5 rounded-full border ${c === '#ffffff' ? 'border-gray-300' : 'border-transparent'}`}
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Width */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Width</h2>
+            <div className="flex items-center gap-3">
+              <input
+                id="brushWidth"
+                type="range"
+                min="1"
+                max="30"
+                step="1"
+                value={currentWidth}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  setCurrentWidth(v);
                   setBrushSettings(prev => ({
                     ...prev,
-                    [activeBrush]: { ...prev[activeBrush], c }
+                    [activeBrush]: { ...prev[activeBrush], w: v }
                   }));
                 }}
-                className={`w-6 h-6 rounded-full border ${c === '#ffffff' ? 'border-gray-300' : 'border-transparent'}`}
-                style={{ backgroundColor: c }}
-                title={c}
+                className="w-full"
               />
-            ))}
-          </div>
-        </div>
+              <span className="w-10 text-right text-xs text-gray-600">{currentWidth}</span>
+            </div>
+          </section>
 
-        {/* 배경색은 흰색으로 고정 */}
+          {/* Opacity */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Opacity</h2>
+            <div className="flex items-center gap-3">
+              <input
+                id="opacity"
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={currentAlpha}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setCurrentAlpha(v);
+                  setBrushSettings(prev => ({
+                    ...prev,
+                    [activeBrush]: { ...prev[activeBrush], a: v }
+                  }));
+                }}
+                className="w-full"
+              />
+              <span className="w-12 text-right text-xs text-gray-600">{Math.round(currentAlpha*100)}%</span>
+            </div>
+          </section>
 
-        {/* 브러시 굵기 */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
-          <label htmlFor="brushWidth" className="text-gray-700 font-semibold">Width</label>
-          <input
-            id="brushWidth"
-            type="range"
-            min="1"
-            max="30"
-            step="1"
-            value={currentWidth}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              setCurrentWidth(v);
-              setBrushSettings(prev => ({
-                ...prev,
-                [activeBrush]: { ...prev[activeBrush], w: v }
-              }));
-            }}
-            className="w-40"
-          />
-          <span className="w-8 text-center text-sm text-gray-600">{currentWidth}</span>
-        </div>
+          {/* Cap */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Cap</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { val: 'round', icon: <Circle size={18} />, label: 'Round' },
+                { val: 'butt', icon: <Minus size={18} />, label: 'Butt' },
+                { val: 'square', icon: <Square size={18} />, label: 'Square' },
+              ].map(({ val, icon, label }) => (
+                <button
+                  key={val}
+                  onClick={() => {
+                    setCurrentCap(val);
+                    setBrushSettings(prev => ({
+                      ...prev,
+                      [activeBrush]: { ...prev[activeBrush], cap: val }
+                    }));
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 h-12 rounded-md border text-xs transition-colors ${
+                    currentCap === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}
+                  title={label}
+                >
+                  {icon}
+                  <span className="leading-none">{label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
 
-        {/* 브러시 끝 모양 */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
-          <label htmlFor="brushCap" className="text-gray-700 font-semibold">Cap</label>
-          <select
-            id="brushCap"
-            value={currentCap}
-            onChange={(e) => {
-              const v = e.target.value;
-              setCurrentCap(v);
-              setBrushSettings(prev => ({
-                ...prev,
-                [activeBrush]: { ...prev[activeBrush], cap: v }
-              }));
-            }}
-            className="border rounded-md px-2 py-1"
-          >
-            <option value="round">round</option>
-            <option value="butt">butt</option>
-            <option value="square">square</option>
-          </select>
-        </div>
+          {/* Stroke style */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Stroke</h2>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { val: 'solid', icon: <Minus size={18} />, label: 'Solid', dash: [] },
+                { val: 'dashed', icon: <Minus size={18} />, label: 'Dashed', dash: [12,8] },
+                { val: 'dotted', icon: <Ellipsis size={18} />, label: 'Dotted', dash: [2,6] },
+              ].map(({ val, icon, label, dash }) => (
+                <button
+                  key={val}
+                  onClick={() => {
+                    setCurrentDash(dash);
+                    setBrushSettings(prev => ({
+                      ...prev,
+                      [activeBrush]: { ...prev[activeBrush], dash }
+                    }));
+                  }}
+                  className={`flex flex-col items-center justify-center gap-1 h-12 rounded-md border text-xs transition-colors ${
+                    (currentDash && currentDash.length) ? ((currentDash[0] <= 3 && val==='dotted') || (currentDash[0] > 3 && val==='dashed')) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100' : (val==='solid' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100')
+                  }`}
+                  title={label}
+                >
+                  {icon}
+                  <span className="leading-none">{label}</span>
+                </button>
+              ))}
+            </div>
+          </section>
 
-        {/* 스트로크 스타일 (Solid/Dashed/Dotted) */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
-          <label htmlFor="strokeStyle" className="text-gray-700 font-semibold">Stroke</label>
-          <select
-            id="strokeStyle"
-            className="border rounded-md px-2 py-1"
-            value={(currentDash && currentDash.length) ? (currentDash[0] <= 3 ? 'dotted' : 'dashed') : 'solid'}
-            onChange={(e) => {
-              const val = e.target.value;
-              let dash = [];
-              if (val === 'dashed') dash = [12, 8];
-              if (val === 'dotted') dash = [2, 6];
-              setCurrentDash(dash);
-              setBrushSettings(prev => ({
-                ...prev,
-                [activeBrush]: { ...prev[activeBrush], dash }
-              }));
-            }}
-          >
-            <option value="solid">solid</option>
-            <option value="dashed">dashed</option>
-            <option value="dotted">dotted</option>
-          </select>
-        </div>
-
-        {/* 불투명도 */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
-          <label htmlFor="opacity" className="text-gray-700 font-semibold">Opacity</label>
-          <input
-            id="opacity"
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={currentAlpha}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              setCurrentAlpha(v);
-              setBrushSettings(prev => ({
-                ...prev,
-                [activeBrush]: { ...prev[activeBrush], a: v }
-              }));
-            }}
-            className="w-32"
-          />
-          <span className="w-10 text-center text-sm text-gray-600">{Math.round(currentAlpha*100)}%</span>
-        </div>
-
-        {/* 브러시 종류 전환 버튼 */}
-        <div className="flex items-center gap-3 bg-white p-3 rounded-lg shadow-md">
-          <span className="text-gray-700 font-semibold">Brush</span>
-          <div className="flex items-center gap-2">
-            {['pen','marker','highlighter','dashed','dotted','eraser'].map(key => (
+          {/* Edit actions */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
+            <div className="grid grid-cols-2 gap-2">
               <button
-                key={key}
-                onClick={() => applyBrush(key)}
-                className={`h-8 px-3 rounded-md border text-xs whitespace-nowrap transition-colors ${
-                  activeBrush === key ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                }`}
-                title={key}
+                onClick={handleUndo}
+                disabled={strokeGroups.length === 0}
+                className={`flex items-center justify-center gap-2 h-10 rounded-md border text-xs ${strokeGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                title="Undo"
               >
-                {key}
+                <Undo2 size={16} /> Undo
               </button>
-            ))}
-          </div>
-        </div>
+              <button
+                onClick={handleRedo}
+                disabled={redoGroups.length === 0}
+                className={`flex items-center justify-center gap-2 h-10 rounded-md border text-xs ${redoGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                title="Redo"
+              >
+                <Redo2 size={16} /> Redo
+              </button>
+              <button
+                onClick={handleClearCanvas}
+                className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-blue-600 hover:bg-blue-700"
+                title="Clear All"
+              >
+                <Trash2 size={16} /> Clear
+              </button>
+              <button
+                onClick={handleSaveImage}
+                className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-600 hover:bg-emerald-700"
+                title="Save as PNG"
+              >
+                <Save size={16} /> Save
+              </button>
+            </div>
+          </section>
+        </aside>
 
-        <button
-          onClick={handleClearCanvas}
-          className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-        >
-          Clear All
-        </button>
+        {/* Main canvas area */}
+        <main className="flex-1 ml-0 sm:ml-64 p-4">
+          <div className="mx-auto max-w-4xl">
+            <div className="relative w-full aspect-[4/3] bg-white rounded-lg shadow-xl overflow-hidden">
+              {loading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white text-lg z-10 rounded-lg">
+                  Webcam loading... Please allow camera access.
+                </div>
+              )}
+              <WebcamComponent ref={webcamRef} />
+              <CanvasComponent
+                ref={canvasRef}
+                currentColor={currentColor}
+                currentHandPoint={currentHandPoint}
+                drawnSegments={drawnSegments}
+              />
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );
