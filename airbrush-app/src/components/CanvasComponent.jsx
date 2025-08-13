@@ -5,7 +5,7 @@ import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef 
 // - strokesCanvas: 누적 선분을 한 번만 그림(점진적 렌더링)
 // - overlayCanvas: 포인터만 rAF로 매 프레임 갱신(배경은 건드리지 않음)
 // - 좌표 반전은 훅에서 처리하여 여기서는 변환 불필요
-const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegments }, ref) => {
+const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegments, logicalWidth = 640, logicalHeight = 480 }, ref) => {
   const strokesCanvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
   const prevLenRef = useRef(0);
@@ -42,7 +42,7 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     ctx.stroke();
   }, []);
 
-  // 초기 배경(흰색) 채우기
+  // 초기 배경(흰색) 채우기 + 사이즈 변경 시 초기화
   useEffect(() => {
     const strokesCanvas = strokesCanvasRef.current;
     if (!strokesCanvas) return;
@@ -51,7 +51,15 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
     sctx.fillStyle = 'white';
     sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
-  }, []);
+    // 사이즈 변동 시 전체 재렌더를 위해 prevLen 초기화 후 다시 그림
+    prevLenRef.current = 0;
+    // 전체 재그리기
+    for (let i = 0; i < drawnSegments.length; i++) {
+      const seg = drawnSegments[i];
+      drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
+      prevLenRef.current = i + 1;
+    }
+  }, [logicalWidth, logicalHeight, drawnSegments, drawLine]);
 
   // 새로 추가된 선분만 누적 캔버스에 그림
   useEffect(() => {
@@ -155,15 +163,15 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
       <canvas
         ref={strokesCanvasRef}
         className="absolute top-0 left-0 w-full h-full rounded-lg"
-        width="640"
-        height="480"
+        width={logicalWidth}
+        height={logicalHeight}
       />
       {/* 포인터 오버레이 캔버스 */}
       <canvas
         ref={overlayCanvasRef}
         className="absolute top-0 left-0 w-full h-full rounded-lg pointer-events-none"
-        width="640"
-        height="480"
+        width={logicalWidth}
+        height={logicalHeight}
       />
     </div>
   );

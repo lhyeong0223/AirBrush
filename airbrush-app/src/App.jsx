@@ -1,10 +1,55 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Undo2, Redo2, Trash2, Save, Droplet, PenLine, Highlighter, Eraser, Minus, Ellipsis, Circle, Square } from 'lucide-react';
 import WebcamComponent from './components/WebcamComponent.jsx';
 import CanvasComponent from './components/CanvasComponent.jsx';
 import useHandTracking from './hooks/useHandTracking'; // 커스텀 훅으로 뻄
 
 function App() {
+  // -------- Canvas size & ratio presets --------
+  const ASPECTS = useMemo(() => ({
+    '4:3': [4, 3],
+    '16:9': [16, 9],
+    '1:1': [1, 1],
+    '9:16': [9, 16],
+  }), []);
+
+  const RES_PRESETS = useMemo(() => ({
+    Low: {
+      '4:3': [640, 480],
+      '16:9': [640, 360],
+      '1:1': [640, 640],
+      '9:16': [480, 854],
+    },
+    Mid: {
+      '4:3': [960, 720],
+      '16:9': [1280, 720],
+      '1:1': [960, 960],
+      '9:16': [720, 1280],
+    },
+    High: {
+      '4:3': [1280, 960],
+      '16:9': [1920, 1080],
+      '1:1': [1280, 1280],
+      '9:16': [1080, 1920],
+    },
+  }), []);
+
+  // Device-based default selection
+  const [aspectRatio, setAspectRatio] = useState(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    return w < 768 ? '9:16' : (w < 1280 ? '4:3' : '16:9');
+  });
+  const [resolutionTier, setResolutionTier] = useState(() => {
+    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    return w < 768 ? 'Low' : (w < 1440 ? 'Mid' : 'High');
+  });
+
+  const [logicalWidth, logicalHeight] = useMemo(() => {
+    const tier = RES_PRESETS[resolutionTier] ?? RES_PRESETS.Mid;
+    const pair = tier[aspectRatio] ?? RES_PRESETS.Mid['4:3'];
+    return pair;
+  }, [RES_PRESETS, resolutionTier, aspectRatio]);
+
   // useHandTracking 훅에서 필요한 모든 상태와 함수를 가져옴.
   const {
     webcamRef,
@@ -25,7 +70,7 @@ function App() {
     setCurrentAlpha,
     currentComposite,
     setCurrentComposite
-  } = useHandTracking('#000000'); // 초기 색상 설정
+  } = useHandTracking('#000000', logicalWidth, logicalHeight); // 초기 색상 + 논리 캔버스 크기
 
   // 브러쉬 전환 및 브러쉬별 설정 저장
   const [activeBrush, setActiveBrush] = useState('pen');
@@ -147,7 +192,7 @@ function App() {
 
       <div className="flex">
         {/* Left vertical toolbar */}
-        <aside className="hidden sm:flex sm:flex-col sm:w-64 sm:shrink-0 sticky top-0 h-screen overflow-y-auto bg-white border-r border-gray-200 p-4 gap-4">
+        <aside className="hidden sm:flex sm:flex-col w-64 border-r bg-white p-3 gap-4 overflow-y-auto sticky top-0 h-screen">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-xl font-bold text-gray-800">AirBrush</h1>
           </div>
@@ -331,6 +376,32 @@ function App() {
             </div>
           </section>
 
+          {/* Canvas size controls */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Canvas Size</h2>
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {Object.keys(ASPECTS).map(key => (
+                <button
+                  key={key}
+                  onClick={() => setAspectRatio(key)}
+                  className={`h-8 rounded-md border text-xs ${aspectRatio===key ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                  title={`Aspect ${key}`}
+                >{key}</button>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {['Low','Mid','High'].map(tier => (
+                <button
+                  key={tier}
+                  onClick={() => setResolutionTier(tier)}
+                  className={`h-8 rounded-md border text-xs ${resolutionTier===tier ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                  title={`${tier} resolution`}
+                >{tier}</button>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-gray-500">{logicalWidth}×{logicalHeight}</p>
+          </section>
+
           {/* Edit actions */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
@@ -372,18 +443,20 @@ function App() {
         {/* Main canvas area */}
         <main className="flex-1 ml-0 sm:ml-64 p-4">
           <div className="mx-auto max-w-4xl">
-            <div className="relative w-full aspect-[4/3] bg-white rounded-lg shadow-xl overflow-hidden">
+            <div className="relative w-full bg-white rounded-lg shadow-xl overflow-hidden" style={{ aspectRatio: `${logicalWidth}/${logicalHeight}` }}>
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white text-lg z-10 rounded-lg">
                   Webcam loading... Please allow camera access.
                 </div>
               )}
-              <WebcamComponent ref={webcamRef} />
+              <WebcamComponent ref={webcamRef} logicalWidth={logicalWidth} logicalHeight={logicalHeight} />
               <CanvasComponent
                 ref={canvasRef}
                 currentColor={currentColor}
                 currentHandPoint={currentHandPoint}
                 drawnSegments={drawnSegments}
+                logicalWidth={logicalWidth}
+                logicalHeight={logicalHeight}
               />
             </div>
           </div>

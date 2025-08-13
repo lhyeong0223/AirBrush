@@ -14,7 +14,7 @@ import * as cam from '@mediapipe/camera_utils';
     currentColor: string // 현재 그리기 색상 (App.jsx에서 설정)
   }}
  */
-const useHandTracking = (initialColor) => {
+const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480) => {
   const webcamRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState(null);
@@ -39,6 +39,8 @@ const useHandTracking = (initialColor) => {
   const currentDashRef = useRef(currentDash);
   const currentAlphaRef = useRef(currentAlpha);
   const currentCompositeRef = useRef(currentComposite);
+  const logicalWidthRef = useRef(logicalWidth);
+  const logicalHeightRef = useRef(logicalHeight);
 
   // 상태가 변경될 때마다 useRef 값을 업데이트
   useEffect(() => { drawingRef.current = drawing; }, [drawing]);
@@ -51,6 +53,8 @@ const useHandTracking = (initialColor) => {
   useEffect(() => { currentDashRef.current = currentDash; }, [currentDash]);
   useEffect(() => { currentAlphaRef.current = currentAlpha; }, [currentAlpha]);
   useEffect(() => { currentCompositeRef.current = currentComposite; }, [currentComposite]);
+  useEffect(() => { logicalWidthRef.current = logicalWidth; }, [logicalWidth]);
+  useEffect(() => { logicalHeightRef.current = logicalHeight; }, [logicalHeight]);
 
 
   // MediaPipe Hands에서 결과가 나올 때마다 호출되는 함수
@@ -60,9 +64,9 @@ const useHandTracking = (initialColor) => {
       const indexTip = landmarks[8];
       const thumbTip = landmarks[4];
 
-      // 캔버스 크기에 맞게 좌표 스케일링 (CanvasComponent의 고정된 크기 640x480 사용)
-      const canvasWidth = 640;
-      const canvasHeight = 480;
+      // 캔버스 크기에 맞게 좌표 스케일링 (논리 캔버스 크기 사용)
+      const canvasWidth = logicalWidthRef.current;
+      const canvasHeight = logicalHeightRef.current;
 
       const canvasX_index = indexTip.x * canvasWidth;
       const canvasY_index = indexTip.y * canvasHeight;
@@ -149,8 +153,8 @@ const useHandTracking = (initialColor) => {
             await hands.send({ image: webcamRef.current.video });
           }
         },
-        width: 640,
-        height: 480,
+        width: logicalWidthRef.current,
+        height: logicalHeightRef.current,
       });
       camera.start();
       setLoading(false);
@@ -159,7 +163,7 @@ const useHandTracking = (initialColor) => {
     return () => {
       hands.close();
     };
-  }, [onResults]);
+  }, [onResults, logicalWidth, logicalHeight]);
 
   return {
     webcamRef,
