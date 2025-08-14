@@ -74,6 +74,10 @@ function App() {
 
   // 브러쉬 전환 및 브러쉬별 설정 저장
   const [activeBrush, setActiveBrush] = useState('pen');
+  // 모드 전환: 'canvas' | 'camera'
+  const [mode, setMode] = useState('canvas');
+  // 저장 포맷 (camera 모드 전용 우선)
+  const [saveFormat, setSaveFormat] = useState('png'); // 'png' | 'jpeg'
   const [brushSettings, setBrushSettings] = useState({
     pen:         { w: 3,  cap: 'round',  dash: [],       a: 1.0,  comp: 'source-over', c: '#000000' },
     marker:      { w: 10, cap: 'round',  dash: [],       a: 0.9,  comp: 'source-over', c: '#000000' },
@@ -100,13 +104,49 @@ function App() {
     }
   };
 
-  // 이미지 저장 (PNG 다운로드)
-  const handleSaveImage = () => {
-    if (!canvasRef.current || !canvasRef.current.downloadImage) return;
+  // 이미지 저장: Canvas 모드(흰 배경 그대로), Camera 모드(카메라 프레임 + 드로잉 합성)
+  const handleSaveImage = (formatOverride) => {
+    const format = (formatOverride || saveFormat || 'png').toLowerCase();
     const ts = new Date();
     const pad = (n) => String(n).padStart(2, '0');
-    const filename = `airbrush_${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}.png`;
-    canvasRef.current.downloadImage(filename);
+    const base = `airbrush_${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}`;
+    const ext = format === 'jpeg' || format === 'jpg' ? 'jpg' : 'png';
+    const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
+    const filename = `${base}.${ext}`;
+
+    if (mode === 'canvas') {
+      if (!canvasRef.current || !canvasRef.current.downloadImage) return;
+      canvasRef.current.downloadImage(filename);
+      return;
+    }
+
+    // camera 모드: 카메라 프레임 + 드로잉 합성
+    const strokesCanvas = canvasRef.current && canvasRef.current.getStrokesCanvas ? canvasRef.current.getStrokesCanvas() : null;
+    const videoEl = webcamRef.current && webcamRef.current.video ? webcamRef.current.video : null;
+    if (!strokesCanvas || !videoEl) return;
+
+    const w = logicalWidth;
+    const h = logicalHeight;
+    const tmp = document.createElement('canvas');
+    tmp.width = w;
+    tmp.height = h;
+    const tctx = tmp.getContext('2d');
+    if (!tctx) return;
+    // 1) 카메라 프레임
+    try {
+      tctx.drawImage(videoEl, 0, 0, w, h);
+    } catch (e) {
+      // 비디오 준비 전이면 실패할 수 있음
+    }
+    // 2) 드로잉(투명 배경)
+    tctx.drawImage(strokesCanvas, 0, 0);
+    const dataUrl = ext === 'jpg' ? tmp.toDataURL(mime, 0.92) : tmp.toDataURL(mime);
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   // 초기 브러쉬 적용
@@ -402,6 +442,23 @@ function App() {
             <p className="mt-2 text-[11px] text-gray-500">{logicalWidth}×{logicalHeight}</p>
           </section>
 
+          {/* Mode toggle */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Mode</h2>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setMode('canvas')}
+                className={`h-8 rounded-md border text-xs ${mode==='canvas' ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                title="Canvas mode (white background)"
+              >Canvas</button>
+              <button
+                onClick={() => setMode('camera')}
+                className={`h-8 rounded-md border text-xs ${mode==='camera' ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                title="Camera mode (draw over live feed)"
+              >Camera</button>
+            </div>
+          </section>
+
           {/* Edit actions */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
@@ -429,13 +486,23 @@ function App() {
               >
                 <Trash2 size={16} /> Clear
               </button>
-              <button
-                onClick={handleSaveImage}
-                className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-600 hover:bg-emerald-700"
-                title="Save as PNG"
-              >
-                <Save size={16} /> Save
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleSaveImage('png')}
+                  className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-600 hover:bg-emerald-700"
+                  title={mode==='camera' ? 'Save camera+drawing as PNG' : 'Save drawing as PNG'}
+                >
+                  <Save size={16} /> Save PNG
+                </button>
+                <button
+                  onClick={() => handleSaveImage('jpeg')}
+                  className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
+                  title="Save camera+drawing as JPEG"
+                  disabled={mode!=='camera'}
+                >
+                  <Save size={16} /> JPG
+                </button>
+              </div>
             </div>
           </section>
         </aside>
@@ -449,7 +516,10 @@ function App() {
                   Webcam loading... Please allow camera access.
                 </div>
               )}
-              <WebcamComponent ref={webcamRef} logicalWidth={logicalWidth} logicalHeight={logicalHeight} />
+              {/* 카메라 레이어: Canvas 모드에서는 비디오를 숨기되 요소는 유지 (Mediapipe용) */}
+              <div className={`absolute inset-0 ${mode==='camera' ? '' : 'opacity-0'}`}>
+                <WebcamComponent ref={webcamRef} logicalWidth={logicalWidth} logicalHeight={logicalHeight} />
+              </div>
               <CanvasComponent
                 ref={canvasRef}
                 currentColor={currentColor}
@@ -457,6 +527,7 @@ function App() {
                 drawnSegments={drawnSegments}
                 logicalWidth={logicalWidth}
                 logicalHeight={logicalHeight}
+                transparent={mode==='camera'}
               />
             </div>
           </div>

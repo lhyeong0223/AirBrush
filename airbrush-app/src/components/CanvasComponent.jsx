@@ -5,7 +5,7 @@ import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef 
 // - strokesCanvas: 누적 선분을 한 번만 그림(점진적 렌더링)
 // - overlayCanvas: 포인터만 rAF로 매 프레임 갱신(배경은 건드리지 않음)
 // - 좌표 반전은 훅에서 처리하여 여기서는 변환 불필요
-const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegments, logicalWidth = 640, logicalHeight = 480 }, ref) => {
+const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegments, logicalWidth = 640, logicalHeight = 480, transparent = false }, ref) => {
   const strokesCanvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
   const prevLenRef = useRef(0);
@@ -42,15 +42,17 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     ctx.stroke();
   }, []);
 
-  // 초기 배경(흰색) 채우기 + 사이즈 변경 시 초기화
+  // 초기 배경(흰색 또는 투명) 채우기 + 사이즈 변경 시 초기화
   useEffect(() => {
     const strokesCanvas = strokesCanvasRef.current;
     if (!strokesCanvas) return;
     const sctx = strokesCanvas.getContext('2d');
     if (!sctx) return;
     sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
-    sctx.fillStyle = 'white';
-    sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+    if (!transparent) {
+      sctx.fillStyle = 'white';
+      sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+    }
     // 사이즈 변동 시 전체 재렌더를 위해 prevLen 초기화 후 다시 그림
     prevLenRef.current = 0;
     // 전체 재그리기
@@ -59,7 +61,7 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
       drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
       prevLenRef.current = i + 1;
     }
-  }, [logicalWidth, logicalHeight, drawnSegments, drawLine]);
+  }, [logicalWidth, logicalHeight, drawnSegments, drawLine, transparent]);
 
   // 새로 추가된 선분만 누적 캔버스에 그림
   useEffect(() => {
@@ -81,21 +83,25 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     } else if (currLen === 0 && prevLen !== 0) {
       // 전체 비움
       sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
-      sctx.fillStyle = 'white';
-      sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+      if (!transparent) {
+        sctx.fillStyle = 'white';
+        sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+      }
       prevLenRef.current = 0;
     } else if (currLen < prevLen) {
       // 감소(Undo 등): 전체 리렌더링
       sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
-      sctx.fillStyle = 'white';
-      sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+      if (!transparent) {
+        sctx.fillStyle = 'white';
+        sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+      }
       for (let i = 0; i < currLen; i++) {
         const seg = drawnSegments[i];
         drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
       }
       prevLenRef.current = currLen;
     }
-  }, [drawnSegments, drawLine]);
+  }, [drawnSegments, drawLine, transparent]);
 
   // rAF로 포인터만 매 프레임 렌더링 (overlay 캔버스만 지움)
   useEffect(() => {
@@ -126,8 +132,10 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
         const sctx = strokesCanvas.getContext('2d');
         if (sctx) {
           sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
-          sctx.fillStyle = 'white';
-          sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+          if (!transparent) {
+            sctx.fillStyle = 'white';
+            sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
+          }
         }
       }
       if (overlayCanvas) {
@@ -137,6 +145,9 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
         }
       }
       prevLenRef.current = 0;
+    },
+    getStrokesCanvas: () => {
+      return strokesCanvasRef.current;
     },
     getImageDataURL: () => {
       const strokesCanvas = strokesCanvasRef.current;
