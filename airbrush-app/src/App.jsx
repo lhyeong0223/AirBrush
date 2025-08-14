@@ -482,10 +482,10 @@ function App() {
             </div>
           </section>
 
-          {/* Edit actions */}
+          {/* Action buttons */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 mb-2" >
               <button
                 onClick={handleUndo}
                 disabled={strokeGroups.length === 0}
@@ -502,6 +502,8 @@ function App() {
               >
                 <Redo2 size={16} /> Redo
               </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
               <button
                 onClick={handleClearCanvas}
                 className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-blue-600 hover:bg-blue-700"
@@ -509,13 +511,20 @@ function App() {
               >
                 <Trash2 size={16} /> Clear
               </button>
-              <div className="flex gap-2">
+            </div>
+              
+          </section>
+
+          {/* Export actions */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Export</h2>
+            <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => handleSaveImage('png')}
-                  className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-600 hover:bg-emerald-700"
+                  className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
                   title={mode==='camera' ? 'Save camera+drawing as PNG' : 'Save drawing as PNG'}
                 >
-                  <Save size={16} /> Save PNG
+                  <Save size={16} /> PNG
                 </button>
                 <button
                   onClick={() => handleSaveImage('jpeg')}
@@ -525,7 +534,6 @@ function App() {
                   <Save size={16} /> JPG
                 </button>
               </div>
-            </div>
           </section>
         </aside>
 
