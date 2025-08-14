@@ -78,6 +78,8 @@ function App() {
   const [mode, setMode] = useState('canvas');
   // 저장 포맷 (camera 모드 전용 우선)
   const [saveFormat, setSaveFormat] = useState('png'); // 'png' | 'jpeg'
+  // 인디케이터 on/off
+  const [showIndicator, setShowIndicator] = useState(false);
   const [brushSettings, setBrushSettings] = useState({
     pen:         { w: 3,  cap: 'round',  dash: [],       a: 1.0,  comp: 'source-over', c: '#000000' },
     marker:      { w: 10, cap: 'round',  dash: [],       a: 0.9,  comp: 'source-over', c: '#000000' },
@@ -115,8 +117,17 @@ function App() {
     const filename = `${base}.${ext}`;
 
     if (mode === 'canvas') {
-      if (!canvasRef.current || !canvasRef.current.downloadImage) return;
-      canvasRef.current.downloadImage(filename);
+      // strokesCanvas를 직접 가져와 원하는 포맷으로 인코딩
+      const strokesCanvas = canvasRef.current && canvasRef.current.getStrokesCanvas ? canvasRef.current.getStrokesCanvas() : null;
+      if (!strokesCanvas) return;
+      // PNG/JPEG 모두 동일 경로로 처리
+      const dataUrl = ext === 'jpg' ? strokesCanvas.toDataURL(mime, 0.92) : strokesCanvas.toDataURL(mime);
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
       return;
     }
 
@@ -459,6 +470,18 @@ function App() {
             </div>
           </section>
 
+          {/* Indicator */}
+          <section>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Indicator</h2>
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                onClick={() => setShowIndicator(v => !v)}
+                className={`h-8 rounded-md border text-xs ${showIndicator ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                title="Toggle on-screen indicator"
+              >{showIndicator ? 'On' : 'Off'}</button>
+            </div>
+          </section>
+
           {/* Edit actions */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
@@ -497,8 +520,7 @@ function App() {
                 <button
                   onClick={() => handleSaveImage('jpeg')}
                   className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
-                  title="Save camera+drawing as JPEG"
-                  disabled={mode!=='camera'}
+                  title={mode==='camera' ? 'Save camera+drawing as JPEG' : 'Save drawing as JPEG'}
                 >
                   <Save size={16} /> JPG
                 </button>
@@ -509,11 +531,21 @@ function App() {
 
         {/* Main canvas area */}
         <main className="flex-1 ml-0 p-4">
-          <div className="mx-auto max-w-4xl">
+          <div className="mx-auto max-w-9/10 ">
             <div className="relative w-full bg-white rounded-lg shadow-xl overflow-hidden" style={{ aspectRatio: `${logicalWidth}/${logicalHeight}` }}>
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white text-lg z-10 rounded-lg">
                   Webcam loading... Please allow camera access.
+                </div>
+              )}
+              {/* Indicator: mode + pointer coordinates + tracking status */}
+              {showIndicator && (
+                <div className="absolute top-2 right-2 z-20 text-[11px] bg-black/60 text-white px-2 py-1 rounded">
+                  <div>Mode: {mode}</div>
+                  <div>Tracking: {currentHandPoint ? 'On' : 'Off'}</div>
+                  <div>
+                    Pointer: {currentHandPoint ? `${Math.round(currentHandPoint.x)}, ${Math.round(currentHandPoint.y)}` : '-'}
+                  </div>
                 </div>
               )}
               {/* 카메라 레이어: Canvas 모드에서는 비디오를 숨기되 요소는 유지 (Mediapipe용) */}
