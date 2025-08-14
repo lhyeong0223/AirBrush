@@ -84,8 +84,8 @@ const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480) 
       // 해상도 독립적인 정규화 거리 (0~1 범위)
       const normDist = Math.hypot(smIx - smTx, smIy - smTy);
       // 히스테리시스: on/off 임계값 분리로 토글 안정화
-      const PINCH_ON = 0.09;  // 약 화면의 5%
-      const PINCH_OFF = 0.11; // 해제는 조금 더 널널하게
+      const PINCH_ON = 0.08;  // 약 화면의 5%
+      const PINCH_OFF = 0.09; // 해제는 조금 더 널널하게
       const threshold = drawingRef.current ? PINCH_OFF : PINCH_ON;
 
       // 캔버스 크기에 맞게 좌표 스케일링 (논리 캔버스 크기 사용) + 미러링
