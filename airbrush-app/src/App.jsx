@@ -68,7 +68,8 @@ function App() {
     currentAlpha,
     setCurrentAlpha,
     currentComposite,
-    setCurrentComposite
+    setCurrentComposite,
+    brushCycleTrigger
   } = useHandTracking('#000000', logicalWidth, logicalHeight, canvasRef);
 
   const [activeBrush, setActiveBrush] = useState('pen');
@@ -81,8 +82,21 @@ function App() {
     highlighter: { w: 18, cap: 'butt', dash: [], a: 0.35, comp: 'source-over', c: '#ffff00' },
     dashed: { w: 6, cap: 'butt', dash: [12, 8], a: 1.0, comp: 'source-over', c: '#000000' },
     dotted: { w: 6, cap: 'round', dash: [2, 6], a: 1.0, comp: 'source-over', c: '#000000' },
-    eraser: { w: 20, cap: 'round', dash: [], a: 1.0, comp: 'destination-out', c: '#ffffff' },
+    eraser: { w: 20, cap: 'round', dash: [], a: 1.0, comp: 'destination-out', c: '#000000' },
   });
+
+  const brushes = ['pen', 'marker', 'highlighter', 'dashed', 'dotted', 'eraser'];
+
+  useEffect(() => {
+    if (brushCycleTrigger > 0) {
+      const currentIndex = brushes.indexOf(activeBrush);
+      const nextIndex = (currentIndex + 1) % brushes.length;
+      const nextBrush = brushes[nextIndex];
+      setActiveBrush(nextBrush);
+      applyBrush(nextBrush);
+      console.log(`Brush cycled to: ${nextBrush}`);
+    }
+  }, [brushCycleTrigger]);
 
   const applyBrush = (key) => {
     const s = brushSettings[key];
@@ -94,7 +108,7 @@ function App() {
     setCurrentAlpha(s.a);
     setCurrentComposite(s.comp);
     if (key === 'eraser') {
-      setCurrentColor('#ffffff');
+      setCurrentColor('#000000');
     } else {
       setCurrentColor(s.c || currentColor);
     }
@@ -365,8 +379,8 @@ function App() {
             <div className="grid grid-cols-3 gap-2">
               {[
                 { val: 'solid', icon: <Minus size={18} />, label: 'Solid', dash: [] },
-                { val: 'dashed', icon: <Minus size={18} />, label: 'Dashed', dash: [12,8] },
-                { val: 'dotted', icon: <Ellipsis size={18} />, label: 'Dotted', dash: [2,6] },
+                { val: 'dashed', icon: <Minus size={18} />, label: 'Dashed', dash: [12, 8] },
+                { val: 'dotted', icon: <Ellipsis size={18} />, label: 'Dotted', dash: [2, 6] },
               ].map(({ val, icon, label, dash }) => (
                 <button
                   key={val}
@@ -505,6 +519,7 @@ function App() {
                 <div className="absolute top-2 right-2 z-20 text-[11px] bg-black/60 text-white px-2 py-1 rounded">
                   <div>Mode: {mode}</div>
                   <div>Tracking: {currentHandPoint ? 'On' : 'Off'}</div>
+                  <div>Brush: {activeBrush}</div>
                   <div>
                     Pointer: {currentHandPoint ? `${Math.round(currentHandPoint.x)}, ${Math.round(currentHandPoint.y)}` : '-'}
                   </div>
