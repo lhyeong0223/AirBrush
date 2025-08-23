@@ -163,9 +163,7 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
       return strokesCanvas.toDataURL('image/png');
     },
     downloadImage: (filename = 'airbrush.png') => {
-      const dataUrl = (typeof window !== 'undefined' && ref && ref.current && ref.current.getImageDataURL)
-        ? ref.current.getImageDataURL()
-        : (strokesCanvasRef.current ? strokesCanvasRef.current.toDataURL('image/png') : null);
+      const dataUrl = strokesCanvasRef.current ? strokesCanvasRef.current.toDataURL('image/png') : null;
       if (!dataUrl) return;
       const a = document.createElement('a');
       a.href = dataUrl;

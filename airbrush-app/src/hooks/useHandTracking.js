@@ -99,33 +99,27 @@ const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480, 
         if (!drawingRef.current) {
           setDrawing(true);
           setLastPoint(newCurrentHandPoint);
-        } else {
-          if (lastPointRef.current) {
-            if (currentCompositeRef.current === 'destination-out') {
-              // 지우개 모드: 선분 추가 대신 즉시 캔버스에 반영
-              const strokesCanvas = canvasRef.current?.getStrokesCanvas?.();
-              if (strokesCanvas) {
-                const sctx = strokesCanvas.getContext('2d');
-                if (sctx) {
-                  drawLine(sctx, lastPointRef.current, newCurrentHandPoint, '#000000', currentWidthRef.current, currentCapRef.current, currentDashRef.current, currentAlphaRef.current, 'destination-out');
-                }
-              }
-            } else {
-              setDrawnSegments(prevSegments => [
-                ...prevSegments,
-                {
-                  p1: lastPointRef.current,
-                  p2: newCurrentHandPoint,
-                  color: currentColorRef.current,
-                  width: currentWidthRef.current,
-                  cap: currentCapRef.current,
-                  dash: currentDashRef.current,
-                  alpha: currentAlphaRef.current,
-                  composite: currentCompositeRef.current
-                }
-              ]);
+        } else if (lastPointRef.current) {
+          const strokesCanvas = canvasRef.current?.getStrokesCanvas?.();
+          if (strokesCanvas) {
+            const sctx = strokesCanvas.getContext('2d');
+            if (sctx) {
+              drawLine(sctx, lastPointRef.current, newCurrentHandPoint, currentColorRef.current, currentWidthRef.current, currentCapRef.current, currentDashRef.current, currentAlphaRef.current, currentCompositeRef.current);
             }
           }
+          setDrawnSegments(prevSegments => [
+            ...prevSegments,
+            {
+              p1: lastPointRef.current,
+              p2: newCurrentHandPoint,
+              color: currentColorRef.current,
+              width: currentWidthRef.current,
+              cap: currentCapRef.current,
+              dash: currentDashRef.current,
+              alpha: currentAlphaRef.current,
+              composite: currentCompositeRef.current
+            }
+          ]);
           setLastPoint(newCurrentHandPoint);
         }
       } else {

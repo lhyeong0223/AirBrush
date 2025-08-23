@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Undo2, Redo2, Trash2, Save, Droplet, PenLine, Highlighter, Eraser, Minus, Ellipsis, Circle, Square } from 'lucide-react';
-import WebcamComponent from './components/WebcamComponent.jsx';
-import CanvasComponent from './components/CanvasComponent.jsx';
+import { Undo2, Redo2, Trash2, Save, PenLine, Highlighter, Eraser, Minus, Ellipsis, Circle, Square, Droplet } from 'lucide-react';
+import WebcamComponent from './components/WebcamComponent';
+import CanvasComponent from './components/CanvasComponent';
 import useHandTracking from './hooks/useHandTracking';
 
 function App() {
@@ -48,7 +48,6 @@ function App() {
     return pair;
   }, [RES_PRESETS, resolutionTier, aspectRatio]);
 
-  // Move canvasRef declaration before useHandTracking
   const canvasRef = useRef(null);
 
   const {
@@ -82,7 +81,7 @@ function App() {
     highlighter: { w: 18, cap: 'butt', dash: [], a: 0.35, comp: 'source-over', c: '#ffff00' },
     dashed: { w: 6, cap: 'butt', dash: [12, 8], a: 1.0, comp: 'source-over', c: '#000000' },
     dotted: { w: 6, cap: 'round', dash: [2, 6], a: 1.0, comp: 'source-over', c: '#000000' },
-    eraser: { w: 20, cap: 'round', dash: [], a: 1.0, comp: 'destination-out', c: 'transparent' },
+    eraser: { w: 20, cap: 'round', dash: [], a: 1.0, comp: 'destination-out', c: '#ffffff' },
   });
 
   const applyBrush = (key) => {
@@ -95,7 +94,7 @@ function App() {
     setCurrentAlpha(s.a);
     setCurrentComposite(s.comp);
     if (key === 'eraser') {
-      setCurrentColor('transparent');
+      setCurrentColor('#ffffff');
     } else {
       setCurrentColor(s.c || currentColor);
     }
@@ -181,25 +180,26 @@ function App() {
     const lastRedo = redoGroups[redoGroups.length - 1];
     isRedoingRef.current = true;
     setRedoGroups((prev) => prev.slice(0, -1));
-    setDrawnSegments([...drawnSegments, ...lastRedo]);
+    setDrawnSegments((prev) => [...prev, ...lastRedo]);
     setStrokeGroups((prev) => [...prev, lastRedo]);
     isRedoingRef.current = false;
   };
 
   useEffect(() => {
+    if (isRedoingRef.current) return;
     const prevDrawing = prevDrawingRef.current;
     if (!prevDrawing && drawing) {
       strokeStartIndexRef.current = drawnSegments.length;
     } else if (prevDrawing && !drawing) {
       const start = strokeStartIndexRef.current;
       const group = drawnSegments.slice(start);
-      if (group.length > 0 || currentComposite === 'destination-out') {
+      if (group.length > 0) {
         setStrokeGroups((prev) => [...prev, group]);
         setRedoGroups([]);
       }
     }
     prevDrawingRef.current = drawing;
-  }, [drawing, drawnSegments, currentComposite]);
+  }, [drawing, drawnSegments]);
 
   return (
     <div className="min-h-screen bg-gray-100 font-inter">
@@ -211,13 +211,11 @@ function App() {
       </style>
 
       <div className="flex">
-        {/* Left vertical toolbar */}
         <aside className="hidden sm:flex sm:flex-col w-64 border-r bg-white p-3 gap-4 overflow-y-auto sticky top-0 h-screen">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-xl font-bold text-gray-800">AirBrush</h1>
           </div>
 
-          {/* Brushes */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Brush</h2>
             <div className="grid grid-cols-3 gap-2">
@@ -244,7 +242,6 @@ function App() {
             </div>
           </section>
 
-          {/* Color & palette */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2 inline-flex items-center gap-1"><Droplet size={14} /> Color</h2>
             <div className="flex items-center gap-3">
@@ -286,7 +283,6 @@ function App() {
             </div>
           </section>
 
-          {/* Width */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Width</h2>
             <div className="flex items-center gap-3">
@@ -311,7 +307,6 @@ function App() {
             </div>
           </section>
 
-          {/* Opacity */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Opacity</h2>
             <div className="flex items-center gap-3">
@@ -336,7 +331,6 @@ function App() {
             </div>
           </section>
 
-          {/* Cap */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Cap</h2>
             <div className="grid grid-cols-3 gap-2">
@@ -366,7 +360,6 @@ function App() {
             </div>
           </section>
 
-          {/* Stroke style */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Stroke</h2>
             <div className="grid grid-cols-3 gap-2">
@@ -396,7 +389,6 @@ function App() {
             </div>
           </section>
 
-          {/* Canvas size controls */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Canvas Size</h2>
             <div className="grid grid-cols-4 gap-2 mb-2">
@@ -422,7 +414,6 @@ function App() {
             <p className="mt-2 text-[11px] text-gray-500">{logicalWidth}×{logicalHeight}</p>
           </section>
 
-          {/* Mode toggle */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Mode</h2>
             <div className="grid grid-cols-2 gap-2">
@@ -439,7 +430,6 @@ function App() {
             </div>
           </section>
 
-          {/* Indicator */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Indicator</h2>
             <div className="grid grid-cols-1 gap-2">
@@ -451,10 +441,9 @@ function App() {
             </div>
           </section>
 
-          {/* Action buttons */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
-            <div className="grid grid-cols-2 gap-2 mb-2" >
+            <div className="grid grid-cols-2 gap-2 mb-2">
               <button
                 onClick={handleUndo}
                 disabled={strokeGroups.length === 0}
@@ -481,41 +470,37 @@ function App() {
                 <Trash2 size={16} /> Clear
               </button>
             </div>
-              
           </section>
 
-          {/* Export actions */}
           <section>
             <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Export</h2>
             <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => handleSaveImage('png')}
-                  className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
-                  title={mode==='camera' ? 'Save camera+drawing as PNG' : 'Save drawing as PNG'}
-                >
-                  <Save size={16} /> PNG
-                </button>
-                <button
-                  onClick={() => handleSaveImage('jpeg')}
-                  className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
-                  title={mode==='camera' ? 'Save camera+drawing as JPEG' : 'Save drawing as JPEG'}
-                >
-                  <Save size={16} /> JPG
-                </button>
-              </div>
+              <button
+                onClick={() => handleSaveImage('png')}
+                className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
+                title={mode==='camera' ? 'Save camera+drawing as PNG' : 'Save drawing as PNG'}
+              >
+                <Save size={16} /> PNG
+              </button>
+              <button
+                onClick={() => handleSaveImage('jpeg')}
+                className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
+                title={mode==='camera' ? 'Save camera+drawing as JPEG' : 'Save drawing as JPEG'}
+              >
+                <Save size={16} /> JPG
+              </button>
+            </div>
           </section>
         </aside>
 
-        {/* Main canvas area */}
         <main className="flex-1 ml-0 p-4">
-          <div className="mx-auto max-w-9/10 ">
+          <div className="mx-auto max-w-9/10">
             <div className="relative w-full bg-white rounded-lg shadow-xl overflow-hidden" style={{ aspectRatio: `${logicalWidth}/${logicalHeight}` }}>
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white text-lg z-10 rounded-lg">
                   Webcam loading... Please allow camera access.
                 </div>
               )}
-              {/* Indicator: mode + pointer coordinates + tracking status */}
               {showIndicator && (
                 <div className="absolute top-2 right-2 z-20 text-[11px] bg-black/60 text-white px-2 py-1 rounded">
                   <div>Mode: {mode}</div>
@@ -525,7 +510,6 @@ function App() {
                   </div>
                 </div>
               )}
-              {/* 카메라 레이어: Canvas 모드에서는 비디오를 숨기되 요소는 유지 (Mediapipe용) */}
               <div className={`absolute inset-0 ${mode==='camera' ? '' : 'opacity-0'}`}>
                 <WebcamComponent ref={webcamRef} logicalWidth={logicalWidth} logicalHeight={logicalHeight} />
               </div>
