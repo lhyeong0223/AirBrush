@@ -1,37 +1,11 @@
 import React, { useRef, useEffect, useCallback, useImperativeHandle, forwardRef } from 'react';
 
-// forwardRef를 사용하여 부모 컴포넌트에서 canvasRef를 접근할 수 있도록 함
-// 성능 최적화:
-// - strokesCanvas: 누적 선분을 한 번만 그림(점진적 렌더링)
-// - overlayCanvas: 포인터만 rAF로 매 프레임 갱신(배경은 건드리지 않음)
-// - 좌표 반전은 훅에서 처리하여 여기서는 변환 불필요
 const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegments, logicalWidth = 640, logicalHeight = 480, transparent = false }, ref) => {
   const strokesCanvasRef = useRef(null);
   const overlayCanvasRef = useRef(null);
   const prevLenRef = useRef(0);
   const rafRef = useRef(null);
 
-  // 선분 그리기 (단일 세그먼트)
-  const drawLine = useCallback((ctx, p1, p2, color, width = 5, cap = 'round', dash = [], alpha = 1.0, composite = 'source-over') => {
-    ctx.beginPath();
-    ctx.setLineDash(Array.isArray(dash) ? dash : []);
-    ctx.lineWidth = width;
-    ctx.lineCap = cap;
-    ctx.strokeStyle = color;
-    const prevAlpha = ctx.globalAlpha;
-    const prevComposite = ctx.globalCompositeOperation;
-    ctx.globalAlpha = alpha;
-    ctx.globalCompositeOperation = composite;
-    ctx.moveTo(p1.x, p1.y);
-    ctx.lineTo(p2.x, p2.y);
-    ctx.stroke();
-    // 다음 그리기에 영향 없도록 초기화
-    ctx.setLineDash([]);
-    ctx.globalAlpha = prevAlpha;
-    ctx.globalCompositeOperation = prevComposite;
-  }, []);
-
-  // 포인터 그리기 (overlay 전용)
   const drawPointer = useCallback((ctx, point, color) => {
     ctx.beginPath();
     ctx.arc(point.x, point.y, 8, 0, Math.PI * 2, false);
@@ -42,7 +16,6 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     ctx.stroke();
   }, []);
 
-  // 초기 배경(흰색 또는 투명) 채우기 + 사이즈 변경 시 초기화
   useEffect(() => {
     const strokesCanvas = strokesCanvasRef.current;
     if (!strokesCanvas) return;
@@ -53,17 +26,28 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
       sctx.fillStyle = 'white';
       sctx.fillRect(0, 0, strokesCanvas.width, strokesCanvas.height);
     }
-    // 사이즈 변동 시 전체 재렌더를 위해 prevLen 초기화 후 다시 그림
     prevLenRef.current = 0;
-    // 전체 재그리기
     for (let i = 0; i < drawnSegments.length; i++) {
       const seg = drawnSegments[i];
-      drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
+      sctx.beginPath();
+      sctx.setLineDash(Array.isArray(seg.dash) ? seg.dash : []);
+      sctx.lineWidth = seg.width;
+      sctx.lineCap = seg.cap;
+      sctx.strokeStyle = seg.color;
+      const prevAlpha = sctx.globalAlpha;
+      const prevComposite = sctx.globalCompositeOperation;
+      sctx.globalAlpha = seg.alpha;
+      sctx.globalCompositeOperation = seg.composite;
+      sctx.moveTo(seg.p1.x, seg.p1.y);
+      sctx.lineTo(seg.p2.x, seg.p2.y);
+      sctx.stroke();
+      sctx.setLineDash([]);
+      sctx.globalAlpha = prevAlpha;
+      sctx.globalCompositeOperation = prevComposite;
       prevLenRef.current = i + 1;
     }
-  }, [logicalWidth, logicalHeight, drawnSegments, drawLine, transparent]);
+  }, [logicalWidth, logicalHeight, drawnSegments, transparent]);
 
-  // 새로 추가된 선분만 누적 캔버스에 그림
   useEffect(() => {
     const strokesCanvas = strokesCanvasRef.current;
     if (!strokesCanvas) return;
@@ -74,14 +58,26 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
     const currLen = drawnSegments.length;
 
     if (currLen > prevLen) {
-      // 증가: 새로 추가된 세그먼트만 그리기
       for (let i = prevLen; i < currLen; i++) {
         const seg = drawnSegments[i];
-        drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
+        sctx.beginPath();
+        sctx.setLineDash(Array.isArray(seg.dash) ? seg.dash : []);
+        sctx.lineWidth = seg.width;
+        sctx.lineCap = seg.cap;
+        sctx.strokeStyle = seg.color;
+        const prevAlpha = sctx.globalAlpha;
+        const prevComposite = sctx.globalCompositeOperation;
+        sctx.globalAlpha = seg.alpha;
+        sctx.globalCompositeOperation = seg.composite;
+        sctx.moveTo(seg.p1.x, seg.p1.y);
+        sctx.lineTo(seg.p2.x, seg.p2.y);
+        sctx.stroke();
+        sctx.setLineDash([]);
+        sctx.globalAlpha = prevAlpha;
+        sctx.globalCompositeOperation = prevComposite;
       }
       prevLenRef.current = currLen;
     } else if (currLen === 0 && prevLen !== 0) {
-      // 전체 비움
       sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
       if (!transparent) {
         sctx.fillStyle = 'white';
@@ -89,7 +85,6 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
       }
       prevLenRef.current = 0;
     } else if (currLen < prevLen) {
-      // 감소(Undo 등): 전체 리렌더링
       sctx.clearRect(0, 0, strokesCanvas.width, strokesCanvas.height);
       if (!transparent) {
         sctx.fillStyle = 'white';
@@ -97,13 +92,26 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
       }
       for (let i = 0; i < currLen; i++) {
         const seg = drawnSegments[i];
-        drawLine(sctx, seg.p1, seg.p2, seg.color, seg.width, seg.cap, seg.dash, seg.alpha, seg.composite);
+        sctx.beginPath();
+        sctx.setLineDash(Array.isArray(seg.dash) ? seg.dash : []);
+        sctx.lineWidth = seg.width;
+        sctx.lineCap = seg.cap;
+        sctx.strokeStyle = seg.color;
+        const prevAlpha = sctx.globalAlpha;
+        const prevComposite = sctx.globalCompositeOperation;
+        sctx.globalAlpha = seg.alpha;
+        sctx.globalCompositeOperation = seg.composite;
+        sctx.moveTo(seg.p1.x, seg.p1.y);
+        sctx.lineTo(seg.p2.x, seg.p2.y);
+        sctx.stroke();
+        sctx.setLineDash([]);
+        sctx.globalAlpha = prevAlpha;
+        sctx.globalCompositeOperation = prevComposite;
       }
       prevLenRef.current = currLen;
     }
-  }, [drawnSegments, drawLine, transparent]);
+  }, [drawnSegments, transparent]);
 
-  // rAF로 포인터만 매 프레임 렌더링 (overlay 캔버스만 지움)
   useEffect(() => {
     const overlayCanvas = overlayCanvasRef.current;
     if (!overlayCanvas) return;
@@ -170,14 +178,12 @@ const CanvasComponent = forwardRef(({ currentColor, currentHandPoint, drawnSegme
 
   return (
     <div className="absolute top-0 left-0 w-full h-full rounded-lg">
-      {/* 누적 선분 캔버스 */}
       <canvas
         ref={strokesCanvasRef}
         className="absolute top-0 left-0 w-full h-full rounded-lg"
         width={logicalWidth}
         height={logicalHeight}
       />
-      {/* 포인터 오버레이 캔버스 */}
       <canvas
         ref={overlayCanvasRef}
         className="absolute top-0 left-0 w-full h-full rounded-lg pointer-events-none"
