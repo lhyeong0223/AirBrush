@@ -2,113 +2,144 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { Hands } from '@mediapipe/hands';
 import * as cam from '@mediapipe/camera_utils';
 
-/**
-  @returns {{
-    webcamRef: React.RefObject<HTMLVideoElement>,
-    currentHandPoint: {x: number, y: number} | null,
-    drawing: boolean,
-    lastPoint: {x: number, y: number} | null,
-    drawnSegments: Array<{p1: {x: number, y: number}, p2: {x: number, y: number}, color: string}>,
-    setDrawnSegments: React.Dispatch<React.SetStateAction<Array<{p1: {x: number, y: number}, p2: {x: number, y: number}, color: string}>>>,
-    loading: boolean,
-    currentColor: string // 현재 그리기 색상 (App.jsx에서 설정)
-  }}
- */
-const useHandTracking = (initialColor) => {
+const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480, canvasRef) => {
   const webcamRef = useRef(null);
   const [drawing, setDrawing] = useState(false);
   const [lastPoint, setLastPoint] = useState(null);
   const [currentHandPoint, setCurrentHandPoint] = useState(null);
   const [loading, setLoading] = useState(true);
   const [drawnSegments, setDrawnSegments] = useState([]);
-  const [currentColor, setCurrentColor] = useState(initialColor); // App.jsx에서 초기 색상 가져옴
+  const [currentColor, setCurrentColor] = useState(initialColor);
+  const [currentWidth, setCurrentWidth] = useState(5);
+  const [currentCap, setCurrentCap] = useState('round');
+  const [currentDash, setCurrentDash] = useState([]);
+  const [currentAlpha, setCurrentAlpha] = useState(1.0);
+  const [currentComposite, setCurrentComposite] = useState('source-over');
 
   const drawingRef = useRef(drawing);
   const lastPointRef = useRef(lastPoint);
   const currentHandPointRef = useRef(currentHandPoint);
   const currentColorRef = useRef(currentColor);
   const drawnSegmentsRef = useRef(drawnSegments);
+  const currentWidthRef = useRef(currentWidth);
+  const currentCapRef = useRef(currentCap);
+  const currentDashRef = useRef(currentDash);
+  const currentAlphaRef = useRef(currentAlpha);
+  const currentCompositeRef = useRef(currentComposite);
+  const logicalWidthRef = useRef(logicalWidth);
+  const logicalHeightRef = useRef(logicalHeight);
+  const smoothIndexRef = useRef({ x: null, y: null });
+  const smoothThumbRef = useRef({ x: null, y: null });
 
-  // 상태가 변경될 때마다 useRef 값을 업데이트
   useEffect(() => { drawingRef.current = drawing; }, [drawing]);
   useEffect(() => { lastPointRef.current = lastPoint; }, [lastPoint]);
   useEffect(() => { currentHandPointRef.current = currentHandPoint; }, [currentHandPoint]);
   useEffect(() => { currentColorRef.current = currentColor; }, [currentColor]);
   useEffect(() => { drawnSegmentsRef.current = drawnSegments; }, [drawnSegments]);
+  useEffect(() => { currentWidthRef.current = currentWidth; }, [currentWidth]);
+  useEffect(() => { currentCapRef.current = currentCap; }, [currentCap]);
+  useEffect(() => { currentDashRef.current = currentDash; }, [currentDash]);
+  useEffect(() => { currentAlphaRef.current = currentAlpha; }, [currentAlpha]);
+  useEffect(() => { currentCompositeRef.current = currentComposite; }, [currentComposite]);
+  useEffect(() => { logicalWidthRef.current = logicalWidth; }, [logicalWidth]);
+  useEffect(() => { logicalHeightRef.current = logicalHeight; }, [logicalHeight]);
 
+  const drawLine = useCallback((ctx, p1, p2, color, width = 5, cap = 'round', dash = [], alpha = 1.0, composite = 'source-over') => {
+    ctx.beginPath();
+    ctx.setLineDash(Array.isArray(dash) ? dash : []);
+    ctx.lineWidth = width;
+    ctx.lineCap = cap;
+    ctx.strokeStyle = color;
+    const prevAlpha = ctx.globalAlpha;
+    const prevComposite = ctx.globalCompositeOperation;
+    ctx.globalAlpha = alpha;
+    ctx.globalCompositeOperation = composite;
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = prevAlpha;
+    ctx.globalCompositeOperation = prevComposite;
+  }, []);
 
-  // MediaPipe Hands에서 결과가 나올 때마다 호출되는 함수
   const onResults = useCallback((results) => {
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-      const landmarks = results.multiHandLandmarks[0]; // 첫 번째 손만 사용
+      const landmarks = results.multiHandLandmarks[0];
       const indexTip = landmarks[8];
       const thumbTip = landmarks[4];
+      const rawIx = indexTip.x, rawIy = indexTip.y;
+      const rawTx = thumbTip.x, rawTy = thumbTip.y;
+      const EMA_KEEP = 0.6;
+      const EMA_APPLY = 1 - EMA_KEEP;
 
-      // 캔버스 크기에 맞게 좌표 스케일링 (CanvasComponent의 고정된 크기 640x480 사용)
-      const canvasWidth = 640;
-      const canvasHeight = 480;
+      const prevI = smoothIndexRef.current;
+      const prevT = smoothThumbRef.current;
+      const smIx = (prevI.x === null) ? rawIx : (prevI.x * EMA_KEEP + rawIx * EMA_APPLY);
+      const smIy = (prevI.y === null) ? rawIy : (prevI.y * EMA_KEEP + rawIy * EMA_APPLY);
+      const smTx = (prevT.x === null) ? rawTx : (prevT.x * EMA_KEEP + rawTx * EMA_APPLY);
+      const smTy = (prevT.y === null) ? rawTy : (prevT.y * EMA_KEEP + rawTy * EMA_APPLY);
+      smoothIndexRef.current = { x: smIx, y: smIy };
+      smoothThumbRef.current = { x: smTx, y: smTy };
 
-      const canvasX_index = indexTip.x * canvasWidth;
-      const canvasY_index = indexTip.y * canvasHeight;
+      const normDist = Math.hypot(smIx - smTx, smIy - smTy);
+      const PINCH_ON = 0.08;
+      const PINCH_OFF = 0.09;
+      const threshold = drawingRef.current ? PINCH_OFF : PINCH_ON;
 
-      const canvasX_thumb = thumbTip.x * canvasWidth;
-      const canvasY_thumb = thumbTip.y * canvasHeight;
-
-      // 미러링 적용: UI는 반전된 웹캠 기준으로 작동해야 하므로 x 좌표를 반전하여 사용
+      const canvasWidth = logicalWidthRef.current;
+      const canvasHeight = logicalHeightRef.current;
+      const canvasX_index = smIx * canvasWidth;
+      const canvasY_index = smIy * canvasHeight;
       const mirroredX_index = canvasWidth - canvasX_index;
-      const mirroredX_thumb = canvasWidth - canvasX_thumb;
 
-      // 핀치 감지를 위해 엄지와 검지 손가락 끝 사이의 거리 계산
-      const distance = Math.sqrt(
-        Math.pow(canvasX_index - canvasX_thumb, 2) +
-        Math.pow(canvasY_index - canvasY_thumb, 2)
-      );
-
-      const pinchThreshold = 30; // 핀치 감지 임계값 (테스트를 통해 조정 가능)
-
-      // 표시/그리기는 미러링된 좌표 사용
       const newCurrentHandPoint = { x: mirroredX_index, y: canvasY_index };
-      setCurrentHandPoint(newCurrentHandPoint); // 손이 감지되면 항상 포인터 위치 업데이트
+      setCurrentHandPoint(newCurrentHandPoint);
 
-      if (distance < pinchThreshold) { // 핀치 감지됨
-        if (!drawingRef.current) { // 그리기 시작
+      if (normDist < threshold) {
+        if (!drawingRef.current) {
           setDrawing(true);
           setLastPoint(newCurrentHandPoint);
-        } else { // 그리기 계속
-          if (lastPointRef.current) {
-            setDrawnSegments(prevSegments => [
-              ...prevSegments,
-              {
-                p1: lastPointRef.current, // 이미 미러링된 좌표
-                p2: newCurrentHandPoint,  // 이미 미러링된 좌표
-                color: currentColorRef.current
-              }
-            ]);
+        } else if (lastPointRef.current) {
+          const strokesCanvas = canvasRef.current?.getStrokesCanvas?.();
+          if (strokesCanvas) {
+            const sctx = strokesCanvas.getContext('2d');
+            if (sctx) {
+              drawLine(sctx, lastPointRef.current, newCurrentHandPoint, currentColorRef.current, currentWidthRef.current, currentCapRef.current, currentDashRef.current, currentAlphaRef.current, currentCompositeRef.current);
+            }
           }
+          setDrawnSegments(prevSegments => [
+            ...prevSegments,
+            {
+              p1: lastPointRef.current,
+              p2: newCurrentHandPoint,
+              color: currentColorRef.current,
+              width: currentWidthRef.current,
+              cap: currentCapRef.current,
+              dash: currentDashRef.current,
+              alpha: currentAlphaRef.current,
+              composite: currentCompositeRef.current
+            }
+          ]);
           setLastPoint(newCurrentHandPoint);
         }
-      } else { // 핀치 아님
+      } else {
         if (drawingRef.current) {
           setDrawing(false);
           setLastPoint(null);
         }
       }
     } else {
-      // 손이 감지되지 않으면 그리기 및 포인터 표시 모두 중지
       if (drawingRef.current) {
         setDrawing(false);
       }
       setLastPoint(null);
       setCurrentHandPoint(null);
     }
-  }, []); // onResults는 이제 어떤 React 상태에도 직접 의존하지 않으므로 빈 의존성 배열을 가집니다.
+  }, [drawLine, canvasRef]);
 
-  // MediaPipe Hands 모델 초기화 및 웹캠 스트림 설정
   useEffect(() => {
     const hands = new Hands({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
-      },
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
     });
 
     hands.setOptions({
@@ -120,7 +151,6 @@ const useHandTracking = (initialColor) => {
 
     hands.onResults(onResults);
 
-    // 웹캠 스트림을 MediaPipe Hands 모델로 전송
     if (webcamRef.current) {
       const camera = new cam.Camera(webcamRef.current.video, {
         onFrame: async () => {
@@ -128,8 +158,8 @@ const useHandTracking = (initialColor) => {
             await hands.send({ image: webcamRef.current.video });
           }
         },
-        width: 640,
-        height: 480,
+        width: logicalWidthRef.current,
+        height: logicalHeightRef.current,
       });
       camera.start();
       setLoading(false);
@@ -138,7 +168,7 @@ const useHandTracking = (initialColor) => {
     return () => {
       hands.close();
     };
-  }, [onResults]);
+  }, [onResults, logicalWidth, logicalHeight]);
 
   return {
     webcamRef,
@@ -149,7 +179,17 @@ const useHandTracking = (initialColor) => {
     setDrawnSegments,
     loading,
     currentColor,
-    setCurrentColor // App.jsx에서 색상 변경을 위해 노출
+    setCurrentColor,
+    currentWidth,
+    setCurrentWidth,
+    currentCap,
+    setCurrentCap,
+    currentDash,
+    setCurrentDash,
+    currentAlpha,
+    setCurrentAlpha,
+    currentComposite,
+    setCurrentComposite
   };
 };
 
