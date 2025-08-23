@@ -162,6 +162,7 @@ const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480, 
           return;
         }
       } else {
+        setDrawing(false);
         pinchClosedCountRef.current = 0;
       }
 
