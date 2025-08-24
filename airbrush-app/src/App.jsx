@@ -1,50 +1,69 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Undo2, Redo2, Trash2, Save, PenLine, Highlighter, Eraser, Minus, Ellipsis, Circle, Square, Droplet } from 'lucide-react';
-import WebcamComponent from './components/WebcamComponent';
-import CanvasComponent from './components/CanvasComponent';
-import useHandTracking from './hooks/useHandTracking';
+import React, { useRef, useState, useEffect, useMemo } from "react";
+import {
+  Undo2,
+  Redo2,
+  Trash2,
+  Save,
+  PenLine,
+  Highlighter,
+  Eraser,
+  Minus,
+  Ellipsis,
+  Circle,
+  Square,
+  Droplet,
+} from "lucide-react";
+import WebcamComponent from "./components/WebcamComponent";
+import CanvasComponent from "./components/CanvasComponent";
+import useHandTracking from "./hooks/useHandTracking";
 
 function App() {
-  const ASPECTS = useMemo(() => ({
-    '4:3': [4, 3],
-    '16:9': [16, 9],
-    '1:1': [1, 1],
-    '9:16': [9, 16],
-  }), []);
+  const ASPECTS = useMemo(
+    () => ({
+      "4:3": [4, 3],
+      "16:9": [16, 9],
+      "1:1": [1, 1],
+      "9:16": [9, 16],
+    }),
+    []
+  );
 
-  const RES_PRESETS = useMemo(() => ({
-    Low: {
-      '4:3': [640, 480],
-      '16:9': [640, 360],
-      '1:1': [640, 640],
-      '9:16': [480, 854],
-    },
-    Mid: {
-      '4:3': [960, 720],
-      '16:9': [1280, 720],
-      '1:1': [960, 960],
-      '9:16': [720, 1280],
-    },
-    High: {
-      '4:3': [1280, 960],
-      '16:9': [1920, 1080],
-      '1:1': [1280, 1280],
-      '9:16': [1080, 1920],
-    },
-  }), []);
+  const RES_PRESETS = useMemo(
+    () => ({
+      Low: {
+        "4:3": [640, 480],
+        "16:9": [640, 360],
+        "1:1": [640, 640],
+        "9:16": [480, 854],
+      },
+      Mid: {
+        "4:3": [960, 720],
+        "16:9": [1280, 720],
+        "1:1": [960, 960],
+        "9:16": [720, 1280],
+      },
+      High: {
+        "4:3": [1280, 960],
+        "16:9": [1920, 1080],
+        "1:1": [1280, 1280],
+        "9:16": [1080, 1920],
+      },
+    }),
+    []
+  );
 
   const [aspectRatio, setAspectRatio] = useState(() => {
-    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
-    return w < 768 ? '9:16' : (w < 1280 ? '4:3' : '16:9');
+    const w = typeof window !== "undefined" ? window.innerWidth : 1280;
+    return w < 768 ? "9:16" : w < 1280 ? "4:3" : "16:9";
   });
   const [resolutionTier, setResolutionTier] = useState(() => {
-    const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
-    return w < 768 ? 'Low' : (w < 1440 ? 'Mid' : 'High');
+    const w = typeof window !== "undefined" ? window.innerWidth : 1280;
+    return w < 768 ? "Low" : w < 1440 ? "Mid" : "High";
   });
 
   const [logicalWidth, logicalHeight] = useMemo(() => {
     const tier = RES_PRESETS[resolutionTier] ?? RES_PRESETS.Mid;
-    const pair = tier[aspectRatio] ?? RES_PRESETS.Mid['4:3'];
+    const pair = tier[aspectRatio] ?? RES_PRESETS.Mid["4:3"];
     return pair;
   }, [RES_PRESETS, resolutionTier, aspectRatio]);
 
@@ -68,21 +87,84 @@ function App() {
     currentAlpha,
     setCurrentAlpha,
     currentComposite,
-    setCurrentComposite
-  } = useHandTracking('#000000', logicalWidth, logicalHeight, canvasRef);
+    setCurrentComposite,
+    brushCycleTrigger,
+  } = useHandTracking("#000000", logicalWidth, logicalHeight, canvasRef);
 
-  const [activeBrush, setActiveBrush] = useState('pen');
-  const [mode, setMode] = useState('canvas');
-  const [saveFormat, setSaveFormat] = useState('png');
+  const [activeBrush, setActiveBrush] = useState("pen");
+  const [mode, setMode] = useState("canvas");
+  const [saveFormat, setSaveFormat] = useState("png");
   const [showIndicator, setShowIndicator] = useState(false);
   const [brushSettings, setBrushSettings] = useState({
-    pen: { w: 3, cap: 'round', dash: [], a: 1.0, comp: 'source-over', c: '#000000' },
-    marker: { w: 10, cap: 'round', dash: [], a: 0.9, comp: 'source-over', c: '#000000' },
-    highlighter: { w: 18, cap: 'butt', dash: [], a: 0.35, comp: 'source-over', c: '#ffff00' },
-    dashed: { w: 6, cap: 'butt', dash: [12, 8], a: 1.0, comp: 'source-over', c: '#000000' },
-    dotted: { w: 6, cap: 'round', dash: [2, 6], a: 1.0, comp: 'source-over', c: '#000000' },
-    eraser: { w: 20, cap: 'round', dash: [], a: 1.0, comp: 'destination-out', c: '#ffffff' },
+    pen: {
+      w: 3,
+      cap: "round",
+      dash: [],
+      a: 1.0,
+      comp: "source-over",
+      c: "#000000",
+    },
+    marker: {
+      w: 10,
+      cap: "round",
+      dash: [],
+      a: 0.9,
+      comp: "source-over",
+      c: "#000000",
+    },
+    highlighter: {
+      w: 18,
+      cap: "butt",
+      dash: [],
+      a: 0.35,
+      comp: "source-over",
+      c: "#ffff00",
+    },
+    dashed: {
+      w: 6,
+      cap: "butt",
+      dash: [12, 8],
+      a: 1.0,
+      comp: "source-over",
+      c: "#000000",
+    },
+    dotted: {
+      w: 6,
+      cap: "round",
+      dash: [2, 6],
+      a: 1.0,
+      comp: "source-over",
+      c: "#000000",
+    },
+    eraser: {
+      w: 20,
+      cap: "round",
+      dash: [],
+      a: 1.0,
+      comp: "destination-out",
+      c: "#000000",
+    },
   });
+
+  const brushes = [
+    "pen",
+    "marker",
+    "highlighter",
+    "dashed",
+    "dotted",
+    "eraser",
+  ];
+
+  useEffect(() => {
+    if (brushCycleTrigger > 0) {
+      const currentIndex = brushes.indexOf(activeBrush);
+      const nextIndex = (currentIndex + 1) % brushes.length;
+      const nextBrush = brushes[nextIndex];
+      setActiveBrush(nextBrush);
+      applyBrush(nextBrush);
+      console.log(`Brush cycled to: ${nextBrush}`);
+    }
+  }, [brushCycleTrigger]);
 
   const applyBrush = (key) => {
     const s = brushSettings[key];
@@ -93,27 +175,35 @@ function App() {
     setCurrentDash(s.dash);
     setCurrentAlpha(s.a);
     setCurrentComposite(s.comp);
-    if (key === 'eraser') {
-      setCurrentColor('#ffffff');
+    if (key === "eraser") {
+      setCurrentColor("#000000");
     } else {
       setCurrentColor(s.c || currentColor);
     }
   };
 
   const handleSaveImage = (formatOverride) => {
-    const format = (formatOverride || saveFormat || 'png').toLowerCase();
+    const format = (formatOverride || saveFormat || "png").toLowerCase();
     const ts = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    const base = `airbrush_${ts.getFullYear()}-${pad(ts.getMonth()+1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}`;
-    const ext = format === 'jpeg' || format === 'jpg' ? 'jpg' : 'png';
-    const mime = ext === 'jpg' ? 'image/jpeg' : 'image/png';
+    const pad = (n) => String(n).padStart(2, "0");
+    const base = `airbrush_${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(
+      ts.getDate()
+    )}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}`;
+    const ext = format === "jpeg" || format === "jpg" ? "jpg" : "png";
+    const mime = ext === "jpg" ? "image/jpeg" : "image/png";
     const filename = `${base}.${ext}`;
 
-    if (mode === 'canvas') {
-      const strokesCanvas = canvasRef.current && canvasRef.current.getStrokesCanvas ? canvasRef.current.getStrokesCanvas() : null;
+    if (mode === "canvas") {
+      const strokesCanvas =
+        canvasRef.current && canvasRef.current.getStrokesCanvas
+          ? canvasRef.current.getStrokesCanvas()
+          : null;
       if (!strokesCanvas) return;
-      const dataUrl = ext === 'jpg' ? strokesCanvas.toDataURL(mime, 0.92) : strokesCanvas.toDataURL(mime);
-      const a = document.createElement('a');
+      const dataUrl =
+        ext === "jpg"
+          ? strokesCanvas.toDataURL(mime, 0.92)
+          : strokesCanvas.toDataURL(mime);
+      const a = document.createElement("a");
       a.href = dataUrl;
       a.download = filename;
       document.body.appendChild(a);
@@ -122,25 +212,32 @@ function App() {
       return;
     }
 
-    const strokesCanvas = canvasRef.current && canvasRef.current.getStrokesCanvas ? canvasRef.current.getStrokesCanvas() : null;
-    const videoEl = webcamRef.current && webcamRef.current.video ? webcamRef.current.video : null;
+    const strokesCanvas =
+      canvasRef.current && canvasRef.current.getStrokesCanvas
+        ? canvasRef.current.getStrokesCanvas()
+        : null;
+    const videoEl =
+      webcamRef.current && webcamRef.current.video
+        ? webcamRef.current.video
+        : null;
     if (!strokesCanvas || !videoEl) return;
 
     const w = logicalWidth;
     const h = logicalHeight;
-    const tmp = document.createElement('canvas');
+    const tmp = document.createElement("canvas");
     tmp.width = w;
     tmp.height = h;
-    const tctx = tmp.getContext('2d');
+    const tctx = tmp.getContext("2d");
     if (!tctx) return;
     try {
       tctx.drawImage(videoEl, 0, 0, w, h);
     } catch (e) {
-      console.error('Failed to draw video frame:', e);
+      console.error("Failed to draw video frame:", e);
     }
     tctx.drawImage(strokesCanvas, 0, 0);
-    const dataUrl = ext === 'jpg' ? tmp.toDataURL(mime, 0.92) : tmp.toDataURL(mime);
-    const a = document.createElement('a');
+    const dataUrl =
+      ext === "jpg" ? tmp.toDataURL(mime, 0.92) : tmp.toDataURL(mime);
+    const a = document.createElement("a");
     a.href = dataUrl;
     a.download = filename;
     document.body.appendChild(a);
@@ -149,7 +246,7 @@ function App() {
   };
 
   useEffect(() => {
-    applyBrush('pen');
+    applyBrush("pen");
   }, []);
 
   const strokeStartIndexRef = useRef(0);
@@ -170,7 +267,12 @@ function App() {
   const handleUndo = () => {
     if (strokeGroups.length === 0) return;
     const lastGroup = strokeGroups[strokeGroups.length - 1];
-    setDrawnSegments(drawnSegments.slice(0, Math.max(0, drawnSegments.length - lastGroup.length)));
+    setDrawnSegments(
+      drawnSegments.slice(
+        0,
+        Math.max(0, drawnSegments.length - lastGroup.length)
+      )
+    );
     setStrokeGroups((prev) => prev.slice(0, -1));
     setRedoGroups((prev) => [...prev, lastGroup]);
   };
@@ -217,21 +319,33 @@ function App() {
           </div>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Brush</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Brush
+            </h2>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { key: 'pen', label: 'Pen', icon: <PenLine size={18} /> },
-                { key: 'marker', label: 'Marker', icon: <PenLine size={18} /> },
-                { key: 'highlighter', label: 'Highlighter', icon: <Highlighter size={18} /> },
-                { key: 'dashed', label: 'Dashed', icon: <Minus size={18} /> },
-                { key: 'dotted', label: 'Dotted', icon: <Ellipsis size={18} /> },
-                { key: 'eraser', label: 'Eraser', icon: <Eraser size={18} /> },
+                { key: "pen", label: "Pen", icon: <PenLine size={18} /> },
+                { key: "marker", label: "Marker", icon: <PenLine size={18} /> },
+                {
+                  key: "highlighter",
+                  label: "Highlighter",
+                  icon: <Highlighter size={18} />,
+                },
+                { key: "dashed", label: "Dashed", icon: <Minus size={18} /> },
+                {
+                  key: "dotted",
+                  label: "Dotted",
+                  icon: <Ellipsis size={18} />,
+                },
+                { key: "eraser", label: "Eraser", icon: <Eraser size={18} /> },
               ].map(({ key, label, icon }) => (
                 <button
                   key={key}
                   onClick={() => applyBrush(key)}
                   className={`flex flex-col items-center justify-center gap-1 h-16 rounded-md border text-xs transition-colors ${
-                    activeBrush === key ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    activeBrush === key
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                   }`}
                   title={label}
                 >
@@ -243,7 +357,9 @@ function App() {
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2 inline-flex items-center gap-1"><Droplet size={14} /> Color</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2 inline-flex items-center gap-1">
+              <Droplet size={14} /> Color
+            </h2>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -252,29 +368,40 @@ function App() {
                 onChange={(e) => {
                   const color = e.target.value;
                   setCurrentColor(color);
-                  if (activeBrush !== 'eraser') {
-                    setBrushSettings(prev => ({
+                  if (activeBrush !== "eraser") {
+                    setBrushSettings((prev) => ({
                       ...prev,
-                      [activeBrush]: { ...prev[activeBrush], c: color }
+                      [activeBrush]: { ...prev[activeBrush], c: color },
                     }));
                   }
                 }}
                 className="w-10 h-10 border-none rounded-md cursor-pointer"
-                disabled={activeBrush === 'eraser'}
+                disabled={activeBrush === "eraser"}
               />
               <div className="grid grid-cols-8 gap-2">
-                {['#000000','#ff0000','#00a152','#1976d2','#9c27b0','#ff9800','#795548','#ffffff'].map((c) => (
+                {[
+                  "#000000",
+                  "#ff0000",
+                  "#00a152",
+                  "#1976d2",
+                  "#9c27b0",
+                  "#ff9800",
+                  "#795548",
+                  "#ffffff",
+                ].map((c) => (
                   <button
                     key={c}
                     onClick={() => {
-                      if (activeBrush === 'eraser') return;
+                      if (activeBrush === "eraser") return;
                       setCurrentColor(c);
-                      setBrushSettings(prev => ({
+                      setBrushSettings((prev) => ({
                         ...prev,
-                        [activeBrush]: { ...prev[activeBrush], c }
+                        [activeBrush]: { ...prev[activeBrush], c },
                       }));
                     }}
-                    className={`w-5 h-5 rounded-full border ${c === '#ffffff' ? 'border-gray-300' : 'border-transparent'}`}
+                    className={`w-5 h-5 rounded-full border ${
+                      c === "#ffffff" ? "border-gray-300" : "border-transparent"
+                    }`}
                     style={{ backgroundColor: c }}
                     title={c}
                   />
@@ -284,31 +411,37 @@ function App() {
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Width</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Width
+            </h2>
             <div className="flex items-center gap-3">
               <input
                 id="brushWidth"
                 type="range"
                 min="1"
-                max="30"
+                max="100"
                 step="1"
                 value={currentWidth}
                 onChange={(e) => {
                   const v = parseInt(e.target.value, 10);
                   setCurrentWidth(v);
-                  setBrushSettings(prev => ({
+                  setBrushSettings((prev) => ({
                     ...prev,
-                    [activeBrush]: { ...prev[activeBrush], w: v }
+                    [activeBrush]: { ...prev[activeBrush], w: v },
                   }));
                 }}
                 className="w-full"
               />
-              <span className="w-10 text-right text-xs text-gray-600">{currentWidth}</span>
+              <span className="w-10 text-right text-xs text-gray-600">
+                {currentWidth}
+              </span>
             </div>
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Opacity</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Opacity
+            </h2>
             <div className="flex items-center gap-3">
               <input
                 id="opacity"
@@ -320,36 +453,42 @@ function App() {
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
                   setCurrentAlpha(v);
-                  setBrushSettings(prev => ({
+                  setBrushSettings((prev) => ({
                     ...prev,
-                    [activeBrush]: { ...prev[activeBrush], a: v }
+                    [activeBrush]: { ...prev[activeBrush], a: v },
                   }));
                 }}
                 className="w-full"
               />
-              <span className="w-12 text-right text-xs text-gray-600">{Math.round(currentAlpha*100)}%</span>
+              <span className="w-12 text-right text-xs text-gray-600">
+                {Math.round(currentAlpha * 100)}%
+              </span>
             </div>
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Cap</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Cap
+            </h2>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { val: 'round', icon: <Circle size={18} />, label: 'Round' },
-                { val: 'butt', icon: <Minus size={18} />, label: 'Butt' },
-                { val: 'square', icon: <Square size={18} />, label: 'Square' },
+                { val: "round", icon: <Circle size={18} />, label: "Round" },
+                { val: "butt", icon: <Minus size={18} />, label: "Butt" },
+                { val: "square", icon: <Square size={18} />, label: "Square" },
               ].map(({ val, icon, label }) => (
                 <button
                   key={val}
                   onClick={() => {
                     setCurrentCap(val);
-                    setBrushSettings(prev => ({
+                    setBrushSettings((prev) => ({
                       ...prev,
-                      [activeBrush]: { ...prev[activeBrush], cap: val }
+                      [activeBrush]: { ...prev[activeBrush], cap: val },
                     }));
                   }}
                   className={`flex flex-col items-center justify-center gap-1 h-12 rounded-md border text-xs transition-colors ${
-                    currentCap === val ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                    currentCap === val
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                   }`}
                   title={label}
                 >
@@ -361,24 +500,48 @@ function App() {
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Stroke</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Stroke
+            </h2>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { val: 'solid', icon: <Minus size={18} />, label: 'Solid', dash: [] },
-                { val: 'dashed', icon: <Minus size={18} />, label: 'Dashed', dash: [12,8] },
-                { val: 'dotted', icon: <Ellipsis size={18} />, label: 'Dotted', dash: [2,6] },
+                {
+                  val: "solid",
+                  icon: <Minus size={18} />,
+                  label: "Solid",
+                  dash: [],
+                },
+                {
+                  val: "dashed",
+                  icon: <Minus size={18} />,
+                  label: "Dashed",
+                  dash: [12, 8],
+                },
+                {
+                  val: "dotted",
+                  icon: <Ellipsis size={18} />,
+                  label: "Dotted",
+                  dash: [2, 6],
+                },
               ].map(({ val, icon, label, dash }) => (
                 <button
                   key={val}
                   onClick={() => {
                     setCurrentDash(dash);
-                    setBrushSettings(prev => ({
+                    setBrushSettings((prev) => ({
                       ...prev,
-                      [activeBrush]: { ...prev[activeBrush], dash }
+                      [activeBrush]: { ...prev[activeBrush], dash },
                     }));
                   }}
                   className={`flex flex-col items-center justify-center gap-1 h-12 rounded-md border text-xs transition-colors ${
-                    (currentDash && currentDash.length) ? ((currentDash[0] <= 3 && val==='dotted') || (currentDash[0] > 3 && val==='dashed')) ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100' : (val==='solid' ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-700 hover:bg-gray-100')
+                    currentDash && currentDash.length
+                      ? (currentDash[0] <= 3 && val === "dotted") ||
+                        (currentDash[0] > 3 && val === "dashed")
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                      : val === "solid"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                   }`}
                   title={label}
                 >
@@ -390,64 +553,108 @@ function App() {
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Canvas Size</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Canvas Size
+            </h2>
             <div className="grid grid-cols-4 gap-2 mb-2">
-              {Object.keys(ASPECTS).map(key => (
+              {Object.keys(ASPECTS).map((key) => (
                 <button
                   key={key}
                   onClick={() => setAspectRatio(key)}
-                  className={`h-8 rounded-md border text-xs ${aspectRatio===key ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                  className={`h-8 rounded-md border text-xs ${
+                    aspectRatio === key
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                  }`}
                   title={`Aspect ${key}`}
-                >{key}</button>
+                >
+                  {key}
+                </button>
               ))}
             </div>
             <div className="grid grid-cols-3 gap-2">
-              {['Low','Mid','High'].map(tier => (
+              {["Low", "Mid", "High"].map((tier) => (
                 <button
                   key={tier}
                   onClick={() => setResolutionTier(tier)}
-                  className={`h-8 rounded-md border text-xs ${resolutionTier===tier ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                  className={`h-8 rounded-md border text-xs ${
+                    resolutionTier === tier
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                  }`}
                   title={`${tier} resolution`}
-                >{tier}</button>
+                >
+                  {tier}
+                </button>
               ))}
             </div>
-            <p className="mt-2 text-[11px] text-gray-500">{logicalWidth}×{logicalHeight}</p>
+            <p className="mt-2 text-[11px] text-gray-500">
+              {logicalWidth}×{logicalHeight}
+            </p>
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Mode</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Mode
+            </h2>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => setMode('canvas')}
-                className={`h-8 rounded-md border text-xs ${mode==='canvas' ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                onClick={() => setMode("canvas")}
+                className={`h-8 rounded-md border text-xs ${
+                  mode === "canvas"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                }`}
                 title="Canvas mode (white background)"
-              >Canvas</button>
+              >
+                Canvas
+              </button>
               <button
-                onClick={() => setMode('camera')}
-                className={`h-8 rounded-md border text-xs ${mode==='camera' ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                onClick={() => setMode("camera")}
+                className={`h-8 rounded-md border text-xs ${
+                  mode === "camera"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                }`}
                 title="Camera mode (draw over live feed)"
-              >Camera</button>
+              >
+                Camera
+              </button>
             </div>
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Indicator</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Indicator
+            </h2>
             <div className="grid grid-cols-1 gap-2">
               <button
-                onClick={() => setShowIndicator(v => !v)}
-                className={`h-8 rounded-md border text-xs ${showIndicator ? 'bg-blue-600 text-white border-blue-600' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                onClick={() => setShowIndicator((v) => !v)}
+                className={`h-8 rounded-md border text-xs ${
+                  showIndicator
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                }`}
                 title="Toggle on-screen indicator"
-              >{showIndicator ? 'On' : 'Off'}</button>
+              >
+                {showIndicator ? "On" : "Off"}
+              </button>
             </div>
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Actions</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Actions
+            </h2>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <button
                 onClick={handleUndo}
                 disabled={strokeGroups.length === 0}
-                className={`flex items-center justify-center gap-2 h-10 rounded-md border text-xs ${strokeGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                className={`flex items-center justify-center gap-2 h-10 rounded-md border text-xs ${
+                  strokeGroups.length === 0
+                    ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                    : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                }`}
                 title="Undo"
               >
                 <Undo2 size={16} /> Undo
@@ -455,7 +662,11 @@ function App() {
               <button
                 onClick={handleRedo}
                 disabled={redoGroups.length === 0}
-                className={`flex items-center justify-center gap-2 h-10 rounded-md border text-xs ${redoGroups.length === 0 ? 'text-gray-400 bg-gray-100 cursor-not-allowed' : 'text-gray-700 bg-gray-50 hover:bg-gray-100'}`}
+                className={`flex items-center justify-center gap-2 h-10 rounded-md border text-xs ${
+                  redoGroups.length === 0
+                    ? "text-gray-400 bg-gray-100 cursor-not-allowed"
+                    : "text-gray-700 bg-gray-50 hover:bg-gray-100"
+                }`}
                 title="Redo"
               >
                 <Redo2 size={16} /> Redo
@@ -473,19 +684,29 @@ function App() {
           </section>
 
           <section>
-            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">Export</h2>
+            <h2 className="text-xs font-semibold text-gray-500 uppercase mb-2">
+              Export
+            </h2>
             <div className="grid grid-cols-2 gap-2">
               <button
-                onClick={() => handleSaveImage('png')}
+                onClick={() => handleSaveImage("png")}
                 className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
-                title={mode==='camera' ? 'Save camera+drawing as PNG' : 'Save drawing as PNG'}
+                title={
+                  mode === "camera"
+                    ? "Save camera+drawing as PNG"
+                    : "Save drawing as PNG"
+                }
               >
                 <Save size={16} /> PNG
               </button>
               <button
-                onClick={() => handleSaveImage('jpeg')}
+                onClick={() => handleSaveImage("jpeg")}
                 className="flex items-center justify-center gap-2 h-10 rounded-md border text-xs text-white bg-emerald-500 hover:bg-emerald-600"
-                title={mode==='camera' ? 'Save camera+drawing as JPEG' : 'Save drawing as JPEG'}
+                title={
+                  mode === "camera"
+                    ? "Save camera+drawing as JPEG"
+                    : "Save drawing as JPEG"
+                }
               >
                 <Save size={16} /> JPG
               </button>
@@ -495,7 +716,10 @@ function App() {
 
         <main className="flex-1 ml-0 p-4">
           <div className="mx-auto max-w-9/10">
-            <div className="relative w-full bg-white rounded-lg shadow-xl overflow-hidden" style={{ aspectRatio: `${logicalWidth}/${logicalHeight}` }}>
+            <div
+              className="relative w-full bg-white rounded-lg shadow-xl overflow-hidden"
+              style={{ aspectRatio: `${logicalWidth}/${logicalHeight}` }}
+            >
               {loading && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75 text-white text-lg z-10 rounded-lg">
                   Webcam loading... Please allow camera access.
@@ -504,14 +728,28 @@ function App() {
               {showIndicator && (
                 <div className="absolute top-2 right-2 z-20 text-[11px] bg-black/60 text-white px-2 py-1 rounded">
                   <div>Mode: {mode}</div>
-                  <div>Tracking: {currentHandPoint ? 'On' : 'Off'}</div>
+                  <div>Tracking: {currentHandPoint ? "On" : "Off"}</div>
+                  <div>Brush: {activeBrush}</div>
                   <div>
-                    Pointer: {currentHandPoint ? `${Math.round(currentHandPoint.x)}, ${Math.round(currentHandPoint.y)}` : '-'}
+                    Pointer:{" "}
+                    {currentHandPoint
+                      ? `${Math.round(currentHandPoint.x)}, ${Math.round(
+                          currentHandPoint.y
+                        )}`
+                      : "-"}
                   </div>
                 </div>
               )}
-              <div className={`absolute inset-0 ${mode==='camera' ? '' : 'opacity-0'}`}>
-                <WebcamComponent ref={webcamRef} logicalWidth={logicalWidth} logicalHeight={logicalHeight} />
+              <div
+                className={`absolute inset-0 ${
+                  mode === "camera" ? "" : "opacity-0"
+                }`}
+              >
+                <WebcamComponent
+                  ref={webcamRef}
+                  logicalWidth={logicalWidth}
+                  logicalHeight={logicalHeight}
+                />
               </div>
               <CanvasComponent
                 ref={canvasRef}
@@ -520,7 +758,7 @@ function App() {
                 drawnSegments={drawnSegments}
                 logicalWidth={logicalWidth}
                 logicalHeight={logicalHeight}
-                transparent={mode==='camera'}
+                transparent={mode === "camera"}
               />
             </div>
           </div>
