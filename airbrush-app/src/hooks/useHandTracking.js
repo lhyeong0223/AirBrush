@@ -106,8 +106,8 @@ const useHandTracking = (initialColor, logicalWidth = 640, logicalHeight = 480, 
       smoothThumbRef.current = { x: smTx, y: smTy };
 
       const normDist = Math.hypot(smIx - smTx, smIy - smTy);
-      const PINCH_ON = 0.08;
-      const PINCH_OFF = 0.09;
+      const PINCH_ON = 0.05;
+      const PINCH_OFF = 0.07;
       const threshold = drawingRef.current ? PINCH_OFF : PINCH_ON;
 
       const canvasX_index = smIx * canvasWidth;
