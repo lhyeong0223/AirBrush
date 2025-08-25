@@ -162,7 +162,6 @@ function App() {
       const nextBrush = brushes[nextIndex];
       setActiveBrush(nextBrush);
       applyBrush(nextBrush);
-      console.log(`Brush cycled to: ${nextBrush}`);
     }
   }, [brushCycleTrigger]);
 
