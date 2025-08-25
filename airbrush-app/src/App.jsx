@@ -379,7 +379,7 @@ function App() {
               </div>
             )}
             {showIndicator && (
-              <div className="absolute top-4 left-4 z-20 text-xs bg-black/60 text-white px-3 py-2 rounded-md">
+              <div className="absolute top-4 left-4 z-20 text-xs bg-white/15 backdrop-blur-md rounded-xl border border-white/20 p-3 shadow-md">
                 <div>Mode: {mode}</div>
                 <div>Tracking: {currentHandPoint ? "On" : "Off"}</div>
                 <div>Brush: {activeBrush}</div>
